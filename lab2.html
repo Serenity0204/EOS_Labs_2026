@@ -645,65 +645,32 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
       <ol>
         <li>
           <p>
-            What is a driver? Explain the relationship between GPIO, driver,
-            driver table, device, and device table.
+              Explain what happens when the driver module is loaded. Describe
+              how the driver is registered with the kernel and how its
+              <code>struct file_operations</code> is associated with the
+              registered device.
+
+              Describe the relationship between the hardware device, the driver,
+              the <code>struct file_operations</code> table, and the device node
+              created under <code>/dev</code>.              
           </p>
 
-          <div class="callout info">
-            <strong>Suggestion</strong>
-            <p>
-              Consider separating this question into two levels: the runtime data
-              flow between a user application and the hardware, and the driver
-              registration process when the kernel module is loaded.
-            </p>
-
-            <ol type="a">
-              <li>
-                <strong>Data flow:</strong>
-                Describe the relationship between the hardware device, the driver,
-                the <code>struct file_operations</code> table, and the device node
-                created under <code>/dev</code>.
-              </li>
-
-              <li>
-                <strong>Driver registration:</strong>
-                Explain what happens when the driver module is loaded. Describe
-                how the driver is registered with the kernel and how its
-                <code>struct file_operations</code> is associated with the
-                registered device.
-              </li>
-            </ol>
-          </div>
         </li>
-
         <li>
           <p>
-            Simply introduce the 40 pins on the RPi. Which pins do you use in this
-            lab?
+              Describe the relationship between the hardware device, the driver,
+              the <code>struct file_operations</code> table, and the device node
+              created under <code>/dev</code>.              
           </p>
 
-          <div class="callout info">
-            <strong>Suggestion</strong>
-            <p>
-              The expected scope of <em>introduce</em> is unclear: students may
-              not know whether they should describe all 40 pins individually or
-              only explain the main pin categories. The word <em>pins</em> may
-              also refer to either physical header positions or BCM GPIO numbers.
-            </p>
-
-            <p>
-              A more specific version could be:
-            </p>
-
-            <p>
-              <strong>
-                Briefly describe the main types of pins on the Raspberry Pi
-                40-pin header, such as GPIO, power, and ground. Which GPIO pins do
-                you use in this lab? Give both their physical header positions and
-                BCM GPIO numbers.
-              </strong>
-            </p>
-          </div>
+        </li>
+        <li>
+          <p>
+              Briefly describe the main types of pins on the Raspberry Pi
+              40-pin header, such as GPIO, power, and ground. Which GPIO pins do
+              you use in this lab? Give both their physical header positions and
+              BCM GPIO numbers.
+          </p>
         </li>
 
         <li>
@@ -716,78 +683,33 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
 
         <li>
           <p>
-            What is switch bounce, and how can a polling driver reduce it?
+              What is switch bounce? Explain how a polling driver can implement
+              software debouncing. Your answer should describe what information
+              the driver keeps (e.g., raw state, stable state, and a timer or
+              counter) and how it decides to accept a new switch state.
           </p>
 
-          <div class="callout info">
-            <strong>Suggestion</strong>
-            <p>
-              Ask students to describe the debouncing algorithm more concretely,
-              so that the question evaluates both their understanding of switch
-              bounce and how software debouncing is actually implemented.
-            </p>
-
-            <p>
-              <strong>
-                What is switch bounce? Explain how a polling driver can implement
-                software debouncing. Your answer should describe what information
-                the driver keeps (e.g., raw state, stable state, and a timer or
-                counter) and how it decides to accept a new switch state.
-              </strong>
-            </p>
-          </div>
         </li>
 
         <li>
           <p>
-            What are the major and minor numbers of
-            <code>/dev/overbug_buttons</code>, and how are they assigned?
+              After loading the module, use <code>ls -l</code> or
+              <code>stat</code> to determine the major and minor numbers of
+              <code>/dev/overbug_buttons</code>. Explain what the major and
+              minor numbers represent, and describe how they are assigned.
           </p>
-
-          <div class="callout info">
-            <strong>Suggestion</strong>
-            <p>
-              The original wording may lead students to report only the numbers
-              they observe without explaining what those numbers mean in the
-              Linux device model.
-            </p>
-
-            <p>
-              <strong>
-                After loading the module, use <code>ls -l</code> or
-                <code>stat</code> to determine the major and minor numbers of
-                <code>/dev/overbug_buttons</code>. Explain what the major and
-                minor numbers represent, and describe how they are assigned.
-              </strong>
-            </p>
-          </div>
         </li>
 
         <li>
           <p>
-            What other insights do you gain from this lab?
+              Choose one Linux kernel mechanism or driver design used in this
+              lab. Investigate why the mechanism was introduced and what problem
+              it was intended to solve. Then explain one limitation it has in a
+              modern Linux or embedded system and compare it with one newer
+              alternative or improvement. Support your comparison with at least
+              one observation from this lab.
           </p>
 
-          <div class="callout info">
-            <strong>Suggestion</strong>
-            <p>
-              Consider replacing this very open-ended question with a focused
-              research question. Students could investigate why a mechanism used
-              in this lab was introduced, how system constraints have changed,
-              and what newer designs or improvements are available today.
-            </p>
-
-            <p>
-              <strong>
-                Choose one Linux kernel mechanism or driver design used in this
-                lab. Investigate why the mechanism was introduced and what problem
-                it was intended to solve. Then explain one limitation it has in a
-                modern Linux or embedded system and compare it with one newer
-                alternative or improvement. Support your comparison with at least
-                one observation from this lab.
-              </strong>
-            </p>
-          </div>
         </li>
       </ol>
     </section>
