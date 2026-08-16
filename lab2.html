@@ -53,8 +53,10 @@
       <ul>
         <li>the user-kernel boundary from Lab 1;</li>
         <li>Linux device files and <code>read()</code>;</li>
-        <li>kernel module build, load, and unload commands; and</li>
+        <li>kernel module build, load, and unload commands;</li>
         <li>active-low GPIO wiring with pull-up resistors.</li>
+        <li>basic socket programming, including IP addresses, port numbers, and the use of <code>socket()</code>, <code>sendto()</code>, and <code>recvfrom()</code>;</li>
+  <li>the basic behavior of UDP as a connectionless, best-effort transport protocol.</li>
       </ul>
       <p>By the end, you will expose a GPIO device state, transmit it over UDP, and verify it in Overbug.</p>
     </section>
@@ -78,16 +80,19 @@
           <p class="lab3-server-title"><span>Student work</span> <code>driver.c</code> and <code>reader.c</code></p>
           <div class="lab3-server-jobs">
             <article>
-              <strong>Read GPIO</strong>
-              <span><code>driver.c</code> combines the six input values into a button mask.</span>
+              <strong>1. Read GPIO</strong>
+              <span>Read six GPIO inputs and represent the device state as one value.</span>
+            </article>
+            <article> 
+              <strong>
+                2. Expose state
+                <small>(For debugging)</small>
+              </strong> 
+              <span>Make the current device state available through <code>/dev/<wbr>overbug_buttons</code>.</span> 
             </article>
             <article>
-              <strong>Device state</strong>
-              <span>Publish <code>OBTN XX</code> through device node.</span>
-            </article>
-            <article>
-              <strong>Send input</strong>
-              <span><code>reader.c</code> sends the <code>OBIN</code> packet on UDP port 17666.</span>
+              <strong>3. Send input</strong>
+              <span>Read the device state and send it to the PC over UDP.</span>
             </article>
           </div>
         </section>
@@ -99,7 +104,7 @@
 
         <div class="lab3-external">
           <strong>Provided PC programs</strong>
-          <span><code>server.c</code> handles player 1, then sends <code>OBST</code> UDP :17667 to <code>display.py</code>.</span>
+          <span><code>server.c</code> receives the device input and sends the updated game state to <code>display.py</code>.</span>
         </div>
       </div>
       <p class="section-intro">The centre rectangle is the Lab 2 implementation boundary. Lab 3 expands the provided server into the next student-owned boundary.</p>
@@ -210,85 +215,267 @@
     </section>
 
     <section class="panel">
-      <h2>1. Device-state interface</h2>
+      <h2>1. Read GPIO</h2>
+
       <p>
-        The driver reads six GPIO inputs that you choose and combines them into
-        one six-bit device state. The lab wiring is active-low: a pressed
-        control connects its GPIO line to GND.
+        The driver reads six GPIO inputs, one for each control: UP, DOWN, LEFT, RIGHT, ACTION, and SOLDER, and represents their combined state as one six-bit <a href="#state-mask">state mask</a> value. The lab wiring is active-low: pressing a control
+        connects its GPIO line to GND.
       </p>
 
-      <h3>Pin demo</h3>
+      <h3>Choose GPIO pins</h3>
+
       <figure class="lab-figure">
-        <img src="assets/raspberry-pi-gpio-pin-demo.png" alt="Raspberry Pi board and 40-pin header reference diagram showing physical pin numbers, GPIO names, power pins, and ground pins">
+        <img
+          src="assets/raspberry-pi-gpio-pin-demo.png"
+          alt="Raspberry Pi board and 40-pin header reference diagram showing physical pin numbers, GPIO names, power pins, and ground pins"
+        >
         <figcaption>
-          Pin demo: use the header reference to identify six GPIO pins for your
-          controls and record the BCM GPIO numbers you choose.
+          Use the header reference to choose six GPIO pins for your controls and
+          record their BCM GPIO numbers.
         </figcaption>
       </figure>
+
       <ul>
-        <li>Choose six pins labelled <code>GPIO</code>; do not use a 3.3 V, 5 V, or GND pin as a GPIO input.</li>
-        <li>Record each physical header position and its BCM GPIO number before wiring your controls.</li>
-        <li>Configure the same six BCM GPIO numbers in your <code>driver.c</code> module parameters.</li>
-        <li>Connect each input through a physical pull-up resistor; the legacy API used in this lab does not configure the internal bias.</li>
+        <li>
+          Choose six pins labelled <code>GPIO</code>; do not use a 3.3 V, 5 V,
+          or GND pin as a GPIO input.
+        </li>
+        <li>
+          Record each physical header position and its BCM GPIO number before
+          wiring your controls.
+        </li>
+        <li>
+          Configure the same six BCM GPIO numbers in your
+          <code>driver.c</code> module parameters.
+        </li>
+        <li>
+          Connect each input through a physical pull-up resistor; the legacy API
+          used in this lab does not configure the internal bias.
+        </li>
       </ul>
 
       <div class="callout warning">
         <strong>Pin availability</strong>
-        Available GPIO functions depend on the Raspberry Pi model, kernel and
-        device-tree configuration, and enabled hardware interfaces. Before
-        wiring, verify that each selected pin is available as a GPIO input and
-        is not reserved for another function.
+        Available GPIO functions depend on the Raspberry Pi model, kernel,
+        device-tree configuration, and enabled hardware interfaces. Before wiring,
+        verify that each selected pin is available as a GPIO input and is not
+        reserved for another function.
       </div>
-
-      <h3>State mask</h3>
-      <pre><code>#define OB_BTN_UP      0x01
-#define OB_BTN_DOWN    0x02
-#define OB_BTN_LEFT    0x04
-#define OB_BTN_RIGHT   0x08
-#define OB_BTN_ACTION  0x10
-#define OB_BTN_SOLDER  0x20</code></pre>
-
-      <h3>Text contract</h3>
-      <p>Each successful read from <code>/dev/overbug_buttons</code> returns one ASCII line:</p>
-      <pre><code>OBTN XX\n</code></pre>
-      <p>
-        <code>XX</code> is the two-digit hexadecimal device-state mask. For
-        example, UP plus ACTION is <code>0x01 | 0x10 = 0x11</code>, so the
-        device returns:
-      </p>
-      <pre><code>OBTN 11\n</code></pre>
-
-      <h3>Polling baseline</h3>
-      <ul>
-        <li>Each <code>read()</code> calculates and returns the current device state.</li>
-        <li><code>reader.c</code> chooses the sample rate with <code>--hz</code>; the default is 60 Hz.</li>
-        <li>If the reader buffer is too small for the complete line, the driver returns an error rather than a partial state.</li>
-        <li>Lab 2 uses polling. A later extension can replace this with interrupt-driven delivery.</li>
-      </ul>
 
       <div class="callout warning">
         <strong>Wiring safety</strong>
         Use 3.3 V GPIO logic only. Do not connect Raspberry Pi GPIO pins to 5 V.
       </div>
+
+      <h3 id="state-mask" style="scroll-margin-top: 100px;">State mask</h3>
+
+      <p>
+        Each control corresponds to one bit in the device-state value:
+      </p>
+
+      <pre><code>#define OB_BTN_UP      0x01 // 0b000001
+    #define OB_BTN_DOWN    0x02 // 0b000010
+    #define OB_BTN_LEFT    0x04 // 0b000100
+    #define OB_BTN_RIGHT   0x08 // 0b001000
+    #define OB_BTN_ACTION  0x10 // 0b010000
+    #define OB_BTN_SOLDER  0x20 // 0b100000</code></pre>
+
+      <p>
+        Multiple pressed controls are combined into the same value. For example,
+        UP and ACTION produce
+        <code>0x01 | 0x10 = 0x11 (0b010001)</code>.
+      </p>
     </section>
 
+
     <section class="panel">
-      <h2>2. Network interface</h2>
+      <h2>2. Expose state (For debugging)</h2>
+
+      <p>
+        The driver exposes the current device state to user-space programs through
+        <code>/dev/overbug_buttons</code>.
+      </p>
+
+      <h3>Device-state data flow</h3>
+        <figure class="lab-figure device-state-flow">
+          <div class="lab3-system-map device-state-flow-row">
+
+            <article class="lab3-external">
+              <strong>UP + ACTION</strong>
+              <span>are pressed</span>
+            </article>
+
+            <div class="lab3-arrow">
+              <span>driver encodes as</span>
+              <b>→</b>
+            </div>
+
+            <article class="lab3-external">
+              <strong>State mask</strong>
+              <span><code>0x11</code></span>
+            </article>
+
+            <div class="lab3-arrow">
+              <span>exposed through</span>
+              <b>→</b>
+            </div>
+
+            <article class="lab3-external">
+              <strong>Device node</strong>
+              <span>
+                <code>/dev/<wbr>overbug_<wbr>buttons</code>
+              </span>
+            </article>
+
+            <div class="lab3-arrow">
+              <span>read by <code>reader.c</code>using <code>read()</code></span>
+              <b>→</b>
+            </div>
+
+            <article class="lab3-external">
+              <strong>Returned text</strong>
+              <span><code>OBTN 11\n</code></span>
+            </article>
+
+          </div>
+
+          <figcaption>
+            Example: pressing UP and ACTION produces the state mask
+            <code>0x11</code>. Reading the device node returns
+            <code>OBTN 11\n</code>.
+          </figcaption>
+        </figure>
+      <p>
+        Each successful <code>read()</code> from
+        <code>/dev/overbug_buttons</code> returns one ASCII line:
+      </p>
+
+      <pre><code>OBTN XX\n</code></pre>
+
+      <p>
+        <code>XX</code> is the two-digit hexadecimal value of the current
+        device-state mask. For example, if UP and ACTION are pressed, the mask is
+        <code>0x11</code>, so the driver returns:
+      </p>
+
+      <pre><code>OBTN 11\n</code></pre>
+
+      <ul>
+        <li>
+          Each <code>read()</code> obtains and returns the current device state.
+        </li>
+        <li>
+          If the reader buffer is too small for the complete line, the driver
+          returns an error rather than a partial state.
+        </li>
+      </ul>
+    </section>
+
+
+    <section class="panel">
+      <h2>3. Send input</h2>
+
+      <p>
+        <code>reader.c</code> reads the device state from <code>/dev/overbug_buttons</code>, packages the state in the required <code>OBIN</code> message format, and sends it to <code>server.c</code> over UDP. See <a href="#network-interface">Network interface</a> section for the exact packet layout.
+      </p>
+
+      <h3>Polling</h3>
+
+      <ul>
+        <li>
+          <code>reader.c</code> repeats this read-package-send cycle at the rate selected by
+          <code>--hz</code>; the default is 60 Hz.
+        </li>
+        <li>
+          Each <code>OBIN</code> message is sent to UDP port <code>17666</code>.
+        </li>
+        <li>
+          Lab 2 uses polling. A later extension can replace this with
+          interrupt-driven delivery.
+        </li>
+      </ul>
+    </section>    
+
+    <section class="panel">
+      <h2 id="network-interface" style="scroll-margin-top: 100px;">Network interface</h2>
       <p>
         The reader converts each sampled <code>OBTN XX</code> line into one
         UDP input packet for the PC game server.
       </p>
 
-      <h3>Reader command</h3>
+      <h3 id="read-command" style="scroll-margin-top: 100px;">Reader command</h3>
       <pre><code>./reader --server &lt;PC_IP&gt; [--device /dev/overbug_buttons] [--port 17666] [--player 1] [--hz 60]</code></pre>
 
       <h3>UDP contract</h3>
       <ul>
-        <li>The reader sends the current device state to UDP port <code>17666</code> at its configured sample rate.</li>
-        <li><code>magic</code> is <code>"OBIN"</code>; this identifies an input packet.</li>
+        <li>Each read-package-send cycle produces one OBIN message, which reader.c sends to the server's UDP port <code>17666</code>.</li>
+        <li><code>magic</code> is <code>"OBIN"</code>; it identifies this message as an Overbug input message.</li>
         <li>Use <code>player_id</code> <code>1</code> for Lab 2. The single-player server ignores other IDs.</li>
         <li><code>button_mask</code> is the six-bit value parsed from <code>OBTN XX</code>.</li>
       </ul>
+      <figure class="lab-figure packet-flow">
+        <div class="packet-flow-row">
+
+          <article class="lab3-external">
+            <strong>Device output</strong>
+            <span><code>OBTN 11\n</code></span>
+          </article>
+
+          <div class="lab3-arrow">
+            <span>parse</span>
+            <b>→</b>
+          </div>
+
+          <article class="lab3-external">
+            <strong>Button mask</strong>
+            <span><code>button_mask = 0x11</code></span>
+          </article>
+
+          <div class="lab3-arrow">
+            <span>package</span>
+            <b>→</b>
+          </div>
+
+          <article class="lab3-external packet-layout">
+            <strong>OBIN message</strong>
+
+            <div class="packet-fields">
+              <div>
+                <code>"OBIN"</code>
+                <span>magic</span>
+              </div>
+
+              <div>
+                <code>1</code>
+                <span>player_id</span>
+              </div>
+
+              <div>
+                <code>0x11</code>
+                <span>button_mask</span>
+              </div>
+            </div>
+          </article>
+
+          <div class="lab3-arrow">
+            <span>send over UDP</span>
+            <b>→</b>
+          </div>
+
+          <article class="lab3-external">
+            <strong>PC server</strong>
+            <span><code>server.c</code></span>
+          </article>
+
+        </div>
+
+        <figcaption>
+          Example: <code>reader.c</code> parses <code>OBTN 11\n</code>,
+          places <code>0x11</code> in the <code>button_mask</code> field,
+          and sends the resulting <code>OBIN</code> message to
+          <code>server.c</code> over UDP.
+        </figcaption>
+      </figure>
 
       <h3>Packet layout</h3>
       <pre><code>struct __attribute__((packed)) ob_input_packet {
@@ -304,7 +491,7 @@
     </section>
 
     <section class="panel">
-      <h2>3. What you implement</h2>
+      <h2>What you implement</h2>
       <p>
         The interfaces are provided by the lab. Your job is to make the
         student-owned files agree with both sides of each contract.
@@ -328,8 +515,8 @@
           </tr>
           <tr>
             <td><code>reader.c</code></td>
-            <td><code>OBTN XX</code> from the device</td>
-            <td>UDP <code>OBIN</code> packet to the PC</td>
+            <td><code>OBTN XX</code> from the <code>/dev/overbug_buttons</code></td>
+            <td><code>OBIN</code> packet transmitted with UDP to the PC</td>
             <td>Student</td>
           </tr>
           <tr>
@@ -340,13 +527,13 @@
           </tr>
           <tr>
             <td><code>server.c</code></td>
-            <td>UDP <code>OBIN</code> packet</td>
-            <td>UDP <code>OBST</code> snapshot</td>
+            <td><code>OBIN</code> packet</td>
+            <td><code>OBST</code> snapshot</td>
             <td>Provided</td>
           </tr>
           <tr>
             <td><code>display.py</code></td>
-            <td>UDP <code>OBST</code> snapshot</td>
+            <td><code>OBST</code> snapshot</td>
             <td>Overbug game window</td>
             <td>Provided</td>
           </tr>
@@ -355,15 +542,35 @@
 
       <h3>Driver checklist</h3>
       <ul>
-        <li>For every configured BCM number, call <code>gpio_request()</code>, then <code>gpio_direction_input()</code>.</li>
-        <li>Read each input with <code>gpio_get_value()</code> and combine the six values into the device-state mask.</li>
-        <li>Create the <code>overbug_buttons</code> misc device.</li>
-        <li>Release every requested line with <code>gpio_free()</code> and unregister the device when the module unloads.</li>
+        <li>
+          <strong>Initialize GPIO:</strong>
+          Request each configured BCM GPIO with <code>gpio_request()</code> and
+          configure it as an input with <code>gpio_direction_input()</code>.
+        </li>
+
+        <li>
+          <strong>Register the device interface:</strong>
+          Register the <code>overbug_buttons</code> misc device so user-space
+          programs can access it through <code>/dev/overbug_buttons</code>.
+        </li>
+
+        <li>
+          <strong>Read and return the device state:</strong>
+          In the driver's <code>read()</code> operation, read the six GPIO inputs
+          with <code>gpio_get_value()</code>, encode them into the six-bit state
+          mask, and return the state in the required <code>OBTN XX\n</code> format.
+        </li>
+
+        <li>
+          <strong>Clean up:</strong>
+          When the module unloads, unregister the misc device and release every
+          requested GPIO with <code>gpio_free()</code>.
+        </li>
       </ul>
 
       <h3>Reader checklist</h3>
       <ul>
-        <li>Parse the command-line server address, device path, port, player ID, and polling rate.</li>
+        <li>Parse the <a href="#read-command">command-line</a>. (server address, device path, port, player ID, and polling rate)</li>
         <li>Fill the shared <code>OBIN</code> packet fields, then send it with UDP.</li>
       </ul>
 
@@ -380,7 +587,7 @@
     </section>
 
     <section class="panel">
-      <h2>4. Build and run</h2>
+      <h2>Build and run</h2>
       <h3>Cross-compile the kernel module on the Ubuntu VM</h3>
       <p>
         The custom kernel installation provides modules but not a
@@ -434,16 +641,154 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
     </section>
 
     <section class="panel">
-      <h2>5. QA</h2>
-
-      <h3>Questions</h3>
+      <h2>QA</h2>
       <ol>
-        <li>What is a driver? Explain the relationship between GPIO, driver, driver table, device, and device table.</li>
-        <li>Simply introduce the 40 pins on the RPi. Which pins do you use in this lab?</li>
-        <li>What do <code>copy_to_user()</code> and <code>copy_from_user()</code> do, and why must a driver use them instead of directly dereferencing a user-space pointer?</li>
-        <li>What is switch bounce, and how can a polling driver reduce it?</li>
-        <li>What are the major and minor numbers of /dev/overbug_buttons, and how are they assigned?</li>
-        <li>What other insights do you gain from this lab?</li>
+        <li>
+          <p>
+            What is a driver? Explain the relationship between GPIO, driver,
+            driver table, device, and device table.
+          </p>
+
+          <div class="callout info">
+            <strong>Suggestion</strong>
+            <p>
+              Consider separating this question into two levels: the runtime data
+              flow between a user application and the hardware, and the driver
+              registration process when the kernel module is loaded.
+            </p>
+
+            <ol type="a">
+              <li>
+                <strong>Data flow:</strong>
+                Describe the relationship between the hardware device, the driver,
+                the <code>struct file_operations</code> table, and the device node
+                created under <code>/dev</code>.
+              </li>
+
+              <li>
+                <strong>Driver registration:</strong>
+                Explain what happens when the driver module is loaded. Describe
+                how the driver is registered with the kernel and how its
+                <code>struct file_operations</code> is associated with the
+                registered device.
+              </li>
+            </ol>
+          </div>
+        </li>
+
+        <li>
+          <p>
+            Simply introduce the 40 pins on the RPi. Which pins do you use in this
+            lab?
+          </p>
+
+          <div class="callout info">
+            <strong>Suggestion</strong>
+            <p>
+              The expected scope of <em>introduce</em> is unclear: students may
+              not know whether they should describe all 40 pins individually or
+              only explain the main pin categories. The word <em>pins</em> may
+              also refer to either physical header positions or BCM GPIO numbers.
+            </p>
+
+            <p>
+              A more specific version could be:
+            </p>
+
+            <p>
+              <strong>
+                Briefly describe the main types of pins on the Raspberry Pi
+                40-pin header, such as GPIO, power, and ground. Which GPIO pins do
+                you use in this lab? Give both their physical header positions and
+                BCM GPIO numbers.
+              </strong>
+            </p>
+          </div>
+        </li>
+
+        <li>
+          <p>
+            What do <code>copy_to_user()</code> and
+            <code>copy_from_user()</code> do, and why must a driver use them
+            instead of directly dereferencing a user-space pointer?
+          </p>
+        </li>
+
+        <li>
+          <p>
+            What is switch bounce, and how can a polling driver reduce it?
+          </p>
+
+          <div class="callout info">
+            <strong>Suggestion</strong>
+            <p>
+              Ask students to describe the debouncing algorithm more concretely,
+              so that the question evaluates both their understanding of switch
+              bounce and how software debouncing is actually implemented.
+            </p>
+
+            <p>
+              <strong>
+                What is switch bounce? Explain how a polling driver can implement
+                software debouncing. Your answer should describe what information
+                the driver keeps (e.g., raw state, stable state, and a timer or
+                counter) and how it decides to accept a new switch state.
+              </strong>
+            </p>
+          </div>
+        </li>
+
+        <li>
+          <p>
+            What are the major and minor numbers of
+            <code>/dev/overbug_buttons</code>, and how are they assigned?
+          </p>
+
+          <div class="callout info">
+            <strong>Suggestion</strong>
+            <p>
+              The original wording may lead students to report only the numbers
+              they observe without explaining what those numbers mean in the
+              Linux device model.
+            </p>
+
+            <p>
+              <strong>
+                After loading the module, use <code>ls -l</code> or
+                <code>stat</code> to determine the major and minor numbers of
+                <code>/dev/overbug_buttons</code>. Explain what the major and
+                minor numbers represent, and describe how they are assigned.
+              </strong>
+            </p>
+          </div>
+        </li>
+
+        <li>
+          <p>
+            What other insights do you gain from this lab?
+          </p>
+
+          <div class="callout info">
+            <strong>Suggestion</strong>
+            <p>
+              Consider replacing this very open-ended question with a focused
+              research question. Students could investigate why a mechanism used
+              in this lab was introduced, how system constraints have changed,
+              and what newer designs or improvements are available today.
+            </p>
+
+            <p>
+              <strong>
+                Choose one Linux kernel mechanism or driver design used in this
+                lab. Investigate why the mechanism was introduced and what problem
+                it was intended to solve. Then explain one limitation it has in a
+                modern Linux or embedded system and compare it with one newer
+                alternative or improvement. Support your comparison with at least
+                one observation from this lab.
+              </strong>
+            </p>
+          </div>
+        </li>
       </ol>
     </section>
   </main>
