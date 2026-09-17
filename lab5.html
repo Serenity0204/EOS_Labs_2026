@@ -25,7 +25,7 @@
 
   <main class="page">
     <section class="hero lab-hero">
-      <p class="eyebrow">RTES913 - EOS - Raspberry Pi 4</p>
+      <p class="eyebrow">RTES913 - EOS - Raspberry Pi 3 or 4</p>
       <h1>Lab 5: Kernel Configuration and Performance Tuning</h1>
       <p class="subtitle">Make one safe, explainable kernel configuration change, then justify and use a public Raspberry Pi benchmark to measure its effect.</p>
     </section>
@@ -35,10 +35,18 @@
       <div class="callout warning">
         <strong>Keep a working boot path.</strong> This lab builds a new kernel image, not a replacement for the Raspberry Pi OS image. Back up the boot configuration before selecting your Lab 5 image.
       </div>
+      <div class="callout info">
+        <strong>Measure both runs on the same board.</strong> A Raspberry Pi 3
+        and a Raspberry Pi 4 produce very different numbers, so a baseline taken
+        on one board and a modified-kernel run taken on the other proves
+        nothing. Take both runs on the same board, and record the model, both
+        <code>uname -r</code> strings, the benchmark and its version, and the
+        power and cooling conditions alongside your results.
+      </div>
       <p>Before starting, make sure you have:</p>
       <ul>
         <li>completed Labs 1 through 4, including a working Lab 4 server that can run on the Raspberry Pi;</li>
-        <li>a dedicated clean <code>rpi-6.1.y</code> Raspberry Pi 4 / 64-bit kernel tree and the arm64 cross-compilation toolchain;</li>
+        <li>a dedicated clean <code>rpi-6.1.y</code> 64-bit kernel tree for your board (Raspberry Pi 3 or 4) and the arm64 cross-compilation toolchain;</li>
         <li>a known-good Raspberry Pi OS boot image, SSH access, and an SD-card recovery path; and</li>
       </ul>
       <p>By the end of this lab, you will be able to trace a kernel configuration from a default configuration to a booted image, compare two controlled benchmark runs, and explain both the benefit and the cost of your change.</p>

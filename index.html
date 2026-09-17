@@ -29,7 +29,7 @@
   <main class="page">
     <section class="hero compact">
       <p class="eyebrow">RTES913 · EOS · Raspberry Pi</p>
-      <p class="hero-kicker">Build an operating system you can play</p>
+      <!-- <p class="hero-kicker">Build an operating system you can play</p> -->
       <h1>Overbug<br><span>Labs</span></h1>
       <p class="subtitle">
         Build operating-system concepts into a cooperative Raspberry Pi repair
@@ -82,16 +82,36 @@
         <p class="section-label">The shared destination</p>
         <h2>Repair the lab before time runs out.</h2>
       </div>
-      <p class="section-intro">
-        The demo below shows the main Overbug workspace: orders at the top,
-        component bins on the left, soldering benches, inspection computers,
-        recycle, shipping, score, and timer.
-      </p>
 
-      <figure class="demo-figure">
-        <img src="assets/overbug-demo.png" alt="Overbug game demo showing orders, component bins, solder stations, inspection stations, recycle, shipping, score, and timer">
+      <figure class="game-figure">
+        <div class="game-stage" id="overbug-stage">
+          <canvas id="overbug-canvas" width="1280" height="720" tabindex="0"
+                  aria-label="Playable Overbug demo, controlled with the keyboard"></canvas>
+          <div class="game-overlay" id="overbug-overlay">
+            <button class="game-play" type="button" id="overbug-play">
+              <span id="overbug-overlay-title">Play Overbug</span>
+            </button>
+            <p id="overbug-overlay-hint">Lab 4 rules, running in your browser.</p>
+          </div>
+        </div>
+
+        <div class="game-bar">
+          <label class="game-field" for="overbug-players">
+            <span>Local players</span>
+            <select id="overbug-players">
+              <option value="1" selected>1</option>
+              <option value="2">2</option>
+              <option value="3">3</option>
+              <option value="4">4</option>
+            </select>
+          </label>
+          <button class="game-button" type="button" id="overbug-restart">Restart round</button>
+          <ul class="game-keys" id="overbug-keys"></ul>
+        </div>
+
         <figcaption>
-          Demo layout for the multiplayer Raspberry Pi repair game.
+          Move, <strong>Action</strong> to pick up or put down, <strong>Solder</strong>
+          held near a welder. Esc pauses; R restarts when the round ends.
         </figcaption>
       </figure>
 
@@ -138,11 +158,11 @@
           <p class="section-label">The roadmap</p>
           <h2>Build the system in six moves.</h2>
         </div>
-        <p class="section-intro">Each lab delivers a working interface for the next one. Follow them in order for the smoothest path.</p>
+        <!-- <p class="section-intro">Each lab delivers a working interface for the next one. Follow them in order for the smoothest path.</p> -->
       </div>
       <p class="section-intro">
         The labs grow the game from its development environment into kernel
-        observation, device-state input, concurrent networked game control, and
+        observation, device-state input, concurrent networked game control, 
         event-driven timing, and measured kernel configuration tuning.
       </p>
       <div class="card-grid">
@@ -267,7 +287,7 @@
       <div class="home-workflow-map" aria-label="Overbug runtime workflow">
         <div class="lab3-external">
           <strong>Physical controls</strong>
-          <span>Six buttons produce GPIO input values.</span>
+          <span>Produce GPIO input values.</span>
         </div>
 
         <div class="lab3-arrow" aria-hidden="true">
@@ -280,11 +300,11 @@
           <div class="lab3-server-jobs">
             <article>
               <strong><code>driver.c</code></strong>
-              <span>Debounce GPIO IRQs and expose changed <code>OBTN XX</code> device states.</span>
+              <span>Debounce and expose changed <code>OBTN XX</code> device states.</span>
             </article>
             <article>
               <strong><code>reader.c</code></strong>
-              <span>Wake on <code>SIGIO</code>, read the device state, and send the six-byte <code>OBIN</code> input packet.</span>
+              <span>Read the device state, and send the <code>OBIN</code> input packet.</span>
             </article>
           </div>
         </section>
@@ -316,28 +336,45 @@
         <p class="section-label">Assessment and submission</p>
         <h2>Submission and Grading</h2>
       </div>
-      <p>Each lab submission is assessed using the following components. Submit work that clearly documents both your implementation and your understanding of the lab concepts.</p>
+      <p>Each lab submission is assessed using the following components. Submit work that clearly documents both your implementation and your understanding of the lab concepts. All work is submitted through E3.</p>
       <table>
         <thead>
           <tr><th scope="col">Component</th><th scope="col">Weight</th><th scope="col">Requirement</th></tr>
         </thead>
         <tbody>
-          <tr><td>Implementation explanation</td><td>40%</td><td>Submit a report or video that clearly explains what you implemented.</td></tr>
-          <tr><td>QA responses</td><td>60%</td><td>Answer all QA questions for the lab with clear reasoning and relevant evidence.</td></tr>
+          <tr><td>Implementation explanation</td><td>40%</td><td>Submit a PDF report and a YouTube video (if needed) that clearly explain what you implemented and show it working. The TA also reviews your submitted source code.</td></tr>
+          <tr><td>QA responses</td><td>60%</td><td>Answer all QA questions for the lab in the report, with clear reasoning and relevant evidence.</td></tr>
         </tbody>
       </table>
 
       <h3>Submission requirements</h3>
       <ol>
-        <li>Commit all source code to a GitHub repository and share the repository with the TA before the lab deadline. The TA will review the submitted code when the lab is due.</li>
-        <li>Submit the explanatory report or video through E3 by the lab deadline.</li>
-        <li>Post any questions about the labs on E3.</li>
+        <li>Submit everything for each lab on <strong>E3</strong> before the lab deadline: source code, report, and video link.</li>
+        <li>Upload <strong>one ZIP file per lab</strong>, named <code>LabN_StudentID.zip</code>, for example <code>Lab1_313511001.zip</code>.</li>
+        <li>The ZIP file must contain:
+          <table>
+            <thead>
+              <tr><th scope="col">Item</th><th scope="col">Content</th></tr>
+            </thead>
+            <tbody>
+              <tr><td><code>report.pdf</code></td><td>Your implementation explanation and QA answers, <strong>at most 10 pages</strong>.</td></tr>
+              <tr><td><code>link.txt</code></td><td>The YouTube video link only.</td></tr>
+              <tr><td><code>code/</code></td><td>All source files you wrote or changed, plus the <code>Makefile</code>, so the TA can build your work.</td></tr>
+            </tbody>
+          </table>
+        </li>
+        <li>Only upload the code files you created or modified. Do not upload the whole source tree, such as the Linux kernel source or the provided starter files you did not change, or build output such as <code>.o</code>, <code>.ko</code>, and executables.</li>
       </ol>
+
+      <h3>Deadline</h3>
+      <p>Each lab is due <strong>three weeks after it is announced</strong>. Check the lab's assignment on E3 for the exact due date.</p>
     </section>
   </main>
 
   <footer class="footer">
     RTES913 - EOS - Overbug
   </footer>
+
+  <script src="game.js" defer></script>
 </body>
 </html>

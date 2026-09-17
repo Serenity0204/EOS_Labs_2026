@@ -36,7 +36,8 @@
     <section class="panel">
       <h2>Before you begin</h2>
       <div class="callout warning">
-        <strong>Kernel warning</strong>
+        <strong>Kernel warning: </strong>
+
         Before starting Lab 2, boot the clean <code>rpi-6.1.y</code> GPIO-lab
         kernel built in Lab 1's appendix and build against its matching source
         tree. Verify that <code>uname -r</code> exactly matches the
@@ -44,10 +45,15 @@
         mismatched build tree may cause module-build or module-load errors.
       </div>
       <div class="callout info">
-        <strong>Teaching API</strong>
+        <strong>Teaching API: </strong>
         This course intentionally pins Linux 6.1 to demonstrate the deprecated
-        integer-based GPIO API. New production drivers should use the
-        descriptor-based <code>gpiod_*</code> API instead.
+        integer-based GPIO API. The pin is also what makes the numbering work:
+        in 6.1 the Raspberry Pi GPIO controller is still registered at base 0,
+        so <code>gpio_request(17)</code> really does request BCM 17. From Linux
+        6.6 onward the same controller is allocated dynamically at base 512, and
+        that call would have to become <code>gpio_request(512 + 17)</code>. New
+        production drivers should use the descriptor-based <code>gpiod_*</code>
+        API instead, which avoids global numbering altogether.
       </div>
       <p>This lab assumes you understand:</p>
       <ul>
@@ -68,7 +74,7 @@
       <div class="lab3-system-map lab2-system-map" aria-label="Lab 2 device-state responsibilities">
         <div class="lab3-external">
           <strong>Physical controller</strong>
-          <span>Six controls become GPIO input values on the Raspberry Pi.</span>
+          <span>A 4&times;4 keypad connects to eight GPIO lines on the Raspberry Pi.</span>
         </div>
 
         <div class="lab3-arrow" aria-hidden="true">
@@ -81,7 +87,7 @@
           <div class="lab3-server-jobs">
             <article>
               <strong>1. Read GPIO</strong>
-              <span>Read six GPIO inputs and represent the device state as one value.</span>
+              <span>Scan the keypad and represent its six game controls as one value.</span>
             </article>
             <article> 
               <strong>
@@ -218,9 +224,92 @@
       <h2>1. Read GPIO</h2>
 
       <p>
-        The driver reads six GPIO inputs, one for each control: UP, DOWN, LEFT, RIGHT, ACTION, and SOLDER, and represents their combined state as one six-bit <a href="#state-mask">state mask</a> value. The lab wiring is active-low: pressing a control
-        connects its GPIO line to GND.
+        Each controller is a 4&times;4 membrane keypad. Six of its 16 keys are the
+        game controls UP, DOWN, LEFT, RIGHT, ACTION, and SOLDER; the other ten
+        keys are not used. The driver scans the keypad through eight GPIO lines
+        and represents the six controls as one six-bit
+        <a href="#state-mask">state mask</a> value.
       </p>
+
+      <h3>How a 4&times;4 keypad works</h3>
+      <p>
+        The 16 keys sit on a grid of four <strong>row</strong> lines (R1&ndash;R4)
+        and four <strong>column</strong> lines (C1&ndash;C4). Pressing a key
+        connects its row line to its column line, and nothing else. The keypad's
+        8-pin cable therefore carries R1&ndash;R4 and C1&ndash;C4; it has no 3.3 V
+        or GND wire.
+      </p>
+
+      <figure class="lab-figure">
+        <img
+          src="assets/keypad-4x4-membrane-back.jpg"
+          alt="Two 4x4 membrane keypads seen from the back, showing printed traces that join the keys in rows and columns and run down a flat cable to an 8-pin socket"
+          loading="lazy"
+        >
+        <figcaption>
+          Two 4&times;4 membrane keypads seen from the back. Each horizontal trace
+          joins the four keys of one row, and each vertical trace joins the four
+          keys of one column. All eight traces run down the flat cable to the
+          8-pin socket. The two keypads route their traces to the socket
+          differently, so check the pin order of your own keypad. Because this is
+          the back, the columns are mirrored compared with the front view below.
+        </figcaption>
+      </figure>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Front</th>
+            <th>C1</th>
+            <th>C2</th>
+            <th>C3</th>
+            <th>C4</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><th>R1</th><td>1</td><td><strong>2</strong></td><td>3</td><td>A</td></tr>
+          <tr><th>R2</th><td><strong>4</strong></td><td><strong>5</strong></td><td><strong>6</strong></td><td>B</td></tr>
+          <tr><th>R3</th><td>7</td><td><strong>8</strong></td><td>9</td><td>C</td></tr>
+          <tr><th>R4</th><td>*</td><td><strong>0</strong></td><td>#</td><td>D</td></tr>
+        </tbody>
+      </table>
+
+      <p>
+        The six bold keys are the game controls listed in the key map below.
+        Always name keys from the printed front side; seen from the back, the
+        columns appear mirrored.
+      </p>
+
+      <h3>Key map</h3>
+      <table>
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Row, column</th>
+            <th>Control</th>
+            <th>Mask bit</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>2</td><td>R1, C2</td><td>UP</td><td><code>0x01</code></td></tr>
+          <tr><td>8</td><td>R3, C2</td><td>DOWN</td><td><code>0x02</code></td></tr>
+          <tr><td>4</td><td>R2, C1</td><td>LEFT</td><td><code>0x04</code></td></tr>
+          <tr><td>6</td><td>R2, C3</td><td>RIGHT</td><td><code>0x08</code></td></tr>
+          <tr><td>5</td><td>R2, C2</td><td>ACTION</td><td><code>0x10</code></td></tr>
+          <tr><td>0</td><td>R4, C2</td><td>SOLDER</td><td><code>0x20</code></td></tr>
+        </tbody>
+      </table>
+
+      <h3>Find the keypad pin order</h3>
+      <p>
+        Keypad makers use different pin orders, so do not assume which cable pin
+        is which line. Check your keypad with a multimeter in continuity mode:
+      </p>
+      <ol>
+        <li>Hold key <strong>1</strong> and find the two cable pins that beep. They are R1 and C1.</li>
+        <li>Hold keys <strong>2</strong>, <strong>3</strong>, and <strong>A</strong> one at a time. The pin shared with step 1 is R1; each new pin is C2, C3, and C4.</li>
+        <li>Hold keys <strong>4</strong>, <strong>7</strong>, and <strong>*</strong> one at a time. C1 beeps again; each new pin is R2, R3, and R4.</li>
+      </ol>
 
       <h3>Choose GPIO pins</h3>
 
@@ -230,36 +319,75 @@
           alt="Raspberry Pi board and 40-pin header reference diagram showing physical pin numbers, GPIO names, power pins, and ground pins"
         >
         <figcaption>
-          Use the header reference to choose six GPIO pins for your controls and
+          Use the header reference to choose eight GPIO pins for the keypad and
           record their BCM GPIO numbers.
         </figcaption>
       </figure>
 
       <ul>
         <li>
-          Choose six pins labelled <code>GPIO</code>; do not use a 3.3 V, 5 V,
-          or GND pin as a GPIO input.
+          Choose eight pins labelled <code>GPIO</code>: four for the rows and four
+          for the columns. Do not use a 3.3 V, 5 V, or GND pin as a GPIO.
         </li>
         <li>
-          Record each physical header position and its BCM GPIO number before
-          wiring your controls.
+          Record each physical header position, its BCM GPIO number, and the
+          keypad line (R1&ndash;R4 or C1&ndash;C4) connected to it.
         </li>
         <li>
-          Configure the same six BCM GPIO numbers in your
+          Configure the same four row and four column BCM GPIO numbers in your
           <code>driver.c</code> module parameters.
         </li>
         <li>
-          Connect each input through a physical pull-up resistor; the legacy API
-          used in this lab does not configure the internal bias.
+          Connect each <strong>column</strong> input to 3.3 V through a physical
+          pull-up resistor; the legacy API used in this lab does not configure the
+          internal bias. The row lines do not need pull-up resistors.
+        </li>
+        <li>
+          The keypad cable ends in a female socket; use male-to-female jumper wires
+          to reach the Raspberry Pi header. Do not fold the flat cable near the
+          socket.
         </li>
       </ul>
+
+      <h3>Scan the keypad</h3>
+      <p>
+        With pull-up resistors, every column reads 1 while no key connects it to
+        anything. To check one row, drive only that row low and read the four
+        columns: a column that reads 0 has a pressed key in that row. Check each
+        of the four rows in turn, then keep only the six mapped keys.
+      </p>
+      <p>
+        For example, if UP and ACTION are held: while R1 is low, C2 reads 0
+        (key 2); while R2 is low, C2 reads 0 again (key 5); R3 and R4 find
+        nothing. The state mask is <code>0x01 | 0x10 = 0x11</code>.
+      </p>
+
+      <div class="callout warning">
+        <strong>Drive one row at a time</strong>
+        Only the row being checked may be an output driven low. Configure every
+        other row as an input, and never drive a row high: if two keys in the same
+        column are pressed, a high row and a low row would be shorted together
+        through the keypad. After changing the active row, give the column lines
+        a short time to settle before reading them.
+      </div>
+
+      <div class="callout info">
+        <strong>Ghosting</strong>
+        This keypad has no diodes. When three or more keys are held, a key that is
+        not pressed can read as pressed. The six mapped keys are placed so that
+        they cannot create a false mapped key among themselves, but holding unused
+        keys at the same time can. Your driver must not report a control that was
+        not pressed.
+      </div>
 
       <div class="callout warning">
         <strong>Pin availability</strong>
         Available GPIO functions depend on the Raspberry Pi model, kernel,
         device-tree configuration, and enabled hardware interfaces. Before wiring,
-        verify that each selected pin is available as a GPIO input and is not
-        reserved for another function.
+        verify that each selected pin is available as a GPIO and is not
+        reserved for another function. The Raspberry Pi 3 and Raspberry Pi 4
+        share the same 40-pin header and the same BCM numbering, so one wiring
+        plan works on either board.
       </div>
 
       <div class="callout warning">
@@ -274,11 +402,11 @@
       </p>
 
       <pre><code>#define OB_BTN_UP      0x01 // 0b000001
-    #define OB_BTN_DOWN    0x02 // 0b000010
-    #define OB_BTN_LEFT    0x04 // 0b000100
-    #define OB_BTN_RIGHT   0x08 // 0b001000
-    #define OB_BTN_ACTION  0x10 // 0b010000
-    #define OB_BTN_SOLDER  0x20 // 0b100000</code></pre>
+#define OB_BTN_DOWN    0x02 // 0b000010
+#define OB_BTN_LEFT    0x04 // 0b000100
+#define OB_BTN_RIGHT   0x08 // 0b001000
+#define OB_BTN_ACTION  0x10 // 0b010000
+#define OB_BTN_SOLDER  0x20 // 0b100000</code></pre>
 
       <p>
         Multiple pressed controls are combined into the same value. For example,
@@ -509,7 +637,7 @@
         <tbody>
           <tr>
             <td><code>driver.c</code></td>
-            <td>Six active-low GPIO values</td>
+            <td>4&times;4 keypad scanned through eight GPIO lines</td>
             <td><code>/dev/overbug_buttons</code> as <code>OBTN XX</code></td>
             <td>Student</td>
           </tr>
@@ -544,8 +672,10 @@
       <ul>
         <li>
           <strong>Initialize GPIO:</strong>
-          Request each configured BCM GPIO with <code>gpio_request()</code> and
-          configure it as an input with <code>gpio_direction_input()</code>.
+          Request the four row and four column GPIOs from your module parameters
+          with <code>gpio_request()</code>. Configure every line as an input with
+          <code>gpio_direction_input()</code>; a row becomes an output only while
+          it is being scanned.
         </li>
 
         <li>
@@ -556,15 +686,15 @@
 
         <li>
           <strong>Read and return the device state:</strong>
-          In the driver's <code>read()</code> operation, read the six GPIO inputs
-          with <code>gpio_get_value()</code>, encode them into the six-bit state
-          mask, and return the state in the required <code>OBTN XX\n</code> format.
+          In the driver's <code>read()</code> operation, scan the keypad, encode
+          the six mapped keys into the six-bit state mask, and return the state in
+          the required <code>OBTN XX\n</code> format.
         </li>
 
         <li>
           <strong>Clean up:</strong>
-          When the module unloads, unregister the misc device and release every
-          requested GPIO with <code>gpio_free()</code>.
+          When the module unloads, unregister the misc device, leave every row as
+          an input, and release every requested GPIO with <code>gpio_free()</code>.
         </li>
       </ul>
 
@@ -618,6 +748,14 @@ make reader
 gcc -std=c11 -Wall -Wextra -O2 -o server server.c -lm
 python3 -m pip install pygame-ce
 python3 display.py --host 0.0.0.0 --port 17667</code></pre>
+      <div class="callout info">
+        <strong>Newer Ubuntu releases</strong>
+        The <code>pip</code> command above is written for the Ubuntu 22.04 LTS
+        environment from Lab 0. On Ubuntu 23.04 or newer it stops with
+        <code>error: externally-managed-environment</code>; use
+        <code>python3 -m pip install --break-system-packages pygame-ce</code> or
+        a virtual environment instead.
+      </div>
       <p>In a second terminal on the same PC or VM:</p>
       <pre><code>cd Lab2
 ./server --input-port 17666 --display-host 127.0.0.1 --display-port 17667</code></pre>
@@ -668,8 +806,8 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
           <p>
               Briefly describe the main types of pins on the Raspberry Pi
               40-pin header, such as GPIO, power, and ground. Which GPIO pins do
-              you use in this lab? Give both their physical header positions and
-              BCM GPIO numbers.
+              you use for the keypad rows and columns? Give both their physical
+              header positions and BCM GPIO numbers.
           </p>
         </li>
 
