@@ -36,7 +36,7 @@
       <h2>Before you begin</h2>
       <p>Before starting this lab, make sure you have:</p>
       <ul>
-        <li>an Ubuntu build environment with the ARM64 cross-compiler installed;</li>
+        <li>an Ubuntu 22.04 LTS;</li>
         <li>a Raspberry Pi and boot media that you can use to test a rebuilt kernel; and</li>
       </ul>
       <p>This lab assumes you understand:</p>
@@ -45,8 +45,8 @@
         <li>System call: a controlled entry point for a user program to request kernel service.</li>
         <li>C struct: a fixed layout used to return several measurements together.</li>
         <li>Pointer safety: the kernel must carefully copy data back to user memory.</li>
-        <li>Kernel build workflow: modify kernel code, rebuild, install, reboot, then test.</li>
-        <li><code>copy_to_user()</code>: a kernel helper used to safely copy data back to a user program.</li>
+        <!-- <li>Kernel build workflow: modify kernel code, rebuild, install, reboot, then test.</li>
+        <li><code>copy_to_user()</code>: a kernel helper used to safely copy data back to a user program.</li> -->
       </ul>
 
       <p>By the end, you will add a small system call to Linux, rebuild and boot the kernel, and call the new interface from a user-space C program.</p>
@@ -147,7 +147,7 @@
 
     <section class="panel">
       <h2>Step 1: Prepare the cross-compilation environment</h2>
-      <p>Run these commands inside the Ubuntu 24.04 VM.</p>
+      <p>Run these commands inside the Ubuntu 22.04 LTS VM.</p>
 
       <pre><code>sudo apt update
 sudo apt install -y git bc bison flex libssl-dev make libc6-dev libncurses5-dev \
@@ -156,28 +156,50 @@ sudo apt install -y git bc bison flex libssl-dev make libc6-dev libncurses5-dev 
       <div class="callout info">
         <strong>Why cross-compile?</strong>
         The VM is usually faster and more comfortable for building the kernel.
-        The generated kernel image will run on the Raspberry Pi 4.
+        The generated kernel image runs on a 64-bit Raspberry Pi 3 or
+        Raspberry Pi 4.
       </div>
     </section>
 
     <section class="panel">
       <h2>Step 2: Get the Raspberry Pi kernel source</h2>
       <p>
-        Clone the Raspberry Pi Linux kernel. This handout uses the
-        <code>rpi-6.1.y</code> branch so the later GPIO labs can demonstrate the
-        legacy integer-based GPIO API.
+        Clone the Raspberry Pi Linux kernel. This handout pins the
+        <code>rpi-6.1.y</code> branch, and every later lab depends on that
+        choice.
       </p>
+
+      <!-- <div class="callout info">
+        <strong>Why Linux 6.1 specifically</strong>
+        Two properties of this tree are what the later labs are built on. First,
+        its generic system-call table ends at 450 and <code>__NR_syscalls</code>
+        is 451, so 451 is the next free number for the system call you add in
+        this lab. Second, its <code>pinctrl-bcm2835</code> driver still
+        registers the GPIO controller at base 0, so the legacy integer GPIO API
+        in Labs 2 and 4 can use raw BCM numbers: <code>gpio_request(17)</code>
+        really does request BCM 17. From Linux 6.6 onward that controller is
+        allocated dynamically at base 512, and the same call would request a
+        different line.
+      </div> -->
 
       <pre><code>git clone --depth=1 --branch rpi-6.1.y https://github.com/raspberrypi/linux.git
 cd linux</code></pre>
     </section>
 
     <section class="panel">
-      <h2>Step 3: Configure a 64-bit Raspberry Pi 4 kernel</h2>
+      <h2>Step 3: Configure a 64-bit Raspberry Pi 3/4 kernel</h2>
       <p>
-        Use the Raspberry Pi 4 default configuration and add a local version
-        suffix so you can recognize your custom kernel after booting.
+        Use the 64-bit Raspberry Pi default configuration and add a local
+        version suffix so you can recognize your custom kernel after booting.
       </p>
+
+      <div class="callout info">
+        <strong>One configuration covers both boards</strong>
+        <code>bcm2711_defconfig</code> is the official 64-bit defconfig for the
+        Raspberry Pi 3, 3+, Zero 2 W and Compute Module 3 as well as the
+        Raspberry Pi 4, so the commands below are identical whichever board you
+        use.
+      </div>
 
       <pre><code>make ARCH=arm64 CROSS_COMPILE=aarch64-linux-gnu- bcm2711_defconfig
 scripts/config --set-str LOCALVERSION "-overbug-lab1"
@@ -358,6 +380,14 @@ sudo cp "$BOOT/config.txt" "$BOOT/config.txt.before-overbug-lab1"</code></pre>
         so install the Device Trees built from the same source tree as your
         custom kernel.
       </p>
+      <p>
+        These files are shared by every kernel on the card, so archive the
+        originals before overwriting them. Run this once, and if the archive
+        already exists, skip it rather than overwriting a good backup with your
+        own Device Trees.
+      </p>
+      <pre><code>( cd "$BOOT" &amp;&amp; sudo tar -czf dtb.before-overbug-lab1.tgz *.dtb overlays )</code></pre>
+
       <pre><code>sudo mkdir -p "$BOOT/overlays"
 sudo cp arch/arm64/boot/dts/broadcom/*.dtb "$BOOT/"
 sudo cp arch/arm64/boot/dts/overlays/*.dtb* "$BOOT/overlays/"
@@ -366,15 +396,27 @@ sudo cp arch/arm64/boot/dts/overlays/README "$BOOT/overlays/"</code></pre>
       <div class="callout warning">
         <strong>Device Tree files are shared.</strong>
         These commands replace the boot partition's existing base Device Trees
-        and overlays; they do not create a second, per-kernel copy. Keep the
-        SD card's original boot partition available if you later need to return
-        to its original Raspberry Pi OS kernel.
+        and overlays; they do not create a second, per-kernel copy. The stock
+        Raspberry Pi OS kernel will therefore also boot against your 6.1 Device
+        Trees until you restore the archive above, so do not skip the backup
+        step.
       </div>
 
       <p>Add these lines near the end of <code>config.txt</code>:</p>
       <pre><code>[all]
 arm_64bit=1
 kernel=kernel8-overbug-lab1.img</code></pre>
+
+      <!-- <div class="callout info">
+        <strong>Your kernel boots without an initramfs</strong>
+        Raspberry Pi OS sets <code>auto_initramfs=1</code>, and the firmware
+        derives the initramfs name from the kernel name, so it looks for
+        <code>initramfs8-overbug-lab1</code> and finds nothing. That is expected
+        and safe here: <code>bcm2711_defconfig</code> builds the SD-card and
+        ext4 drivers into the image, so your kernel mounts the root partition on
+        its own. Do not point <code>kernel=</code> at your image while leaving
+        the distribution's own <code>initramfs</code> line selected.
+      </div> -->
 
       <p>Safely flush writes and unmount the SD card:</p>
       <pre><code>sync
@@ -409,106 +451,7 @@ uname -r</code></pre>
         syscall number <code>451</code> and prints the returned measurements.
       </p>
 
-      <!-- <pre><code>#define _GNU_SOURCE
-
-#include &lt;errno.h&gt;
-#include &lt;stdint.h&gt;
-#include &lt;stdio.h&gt;
-#include &lt;string.h&gt;
-#include &lt;sys/syscall.h&gt;
-#include &lt;unistd.h&gt;
-
-#define SYS_TASK_SNAPSHOT 451
-
-struct task_snapshot {
-    uint32_t pid;
-    uint32_t tgid;
-    uint32_t cpu;
-    uint64_t timestamp_ns;
-    uint64_t runtime_ns;
-    uint64_t user_cpu_ns;
-    uint64_t system_cpu_ns;
-    uint64_t voluntary_context_switches;
-    uint64_t involuntary_context_switches;
-    uint64_t minor_page_faults;
-    uint64_t major_page_faults;
-};
-
-static long task_snapshot_take(struct task_snapshot *snapshot)
-{
-    return syscall(SYS_TASK_SNAPSHOT, snapshot);
-}
-
-static void print_snapshot(const char *label, const struct task_snapshot *s)
-{
-    printf("== %s ==\n", label);
-    printf("pid: %u\n", s-&gt;pid);
-    printf("tgid: %u\n", s-&gt;tgid);
-    printf("cpu: %u\n", s-&gt;cpu);
-    printf("timestamp_ns: %llu\n", (unsigned long long)s-&gt;timestamp_ns);
-    printf("runtime_ns: %llu\n", (unsigned long long)s-&gt;runtime_ns);
-    printf("user_cpu_ns: %llu\n", (unsigned long long)s-&gt;user_cpu_ns);
-    printf("system_cpu_ns: %llu\n", (unsigned long long)s-&gt;system_cpu_ns);
-    printf("voluntary_context_switches: %llu\n",
-           (unsigned long long)s-&gt;voluntary_context_switches);
-    printf("involuntary_context_switches: %llu\n",
-           (unsigned long long)s-&gt;involuntary_context_switches);
-    printf("minor_page_faults: %llu\n", (unsigned long long)s-&gt;minor_page_faults);
-    printf("major_page_faults: %llu\n", (unsigned long long)s-&gt;major_page_faults);
-}
-
-static void cpu_work(void)
-{
-    volatile unsigned long long sum = 0;
-
-    for (unsigned long long i = 0; i &lt; 200000000ULL; i++)
-        sum += i;
-}
-
-int main(void)
-{
-    struct task_snapshot before;
-    struct task_snapshot after;
-
-    if (task_snapshot_take(&amp;before) &lt; 0) {
-        fprintf(stderr, "task_snapshot failed: %s\n", strerror(errno));
-        return 1;
-    }
-
-    cpu_work();
-
-    if (task_snapshot_take(&amp;after) &lt; 0) {
-        fprintf(stderr, "task_snapshot failed: %s\n", strerror(errno));
-        return 1;
-    }
-
-    print_snapshot("before", &amp;before);
-    print_snapshot("after", &amp;after);
-
-    printf("== delta ==\n");
-    printf("elapsed_ns: %llu\n",
-           (unsigned long long)(after.timestamp_ns - before.timestamp_ns));
-    printf("runtime_ns: %llu\n",
-           (unsigned long long)(after.runtime_ns - before.runtime_ns));
-    printf("user_cpu_ns: %llu\n",
-           (unsigned long long)(after.user_cpu_ns - before.user_cpu_ns));
-    printf("system_cpu_ns: %llu\n",
-           (unsigned long long)(after.system_cpu_ns - before.system_cpu_ns));
-    printf("voluntary_context_switches: %llu\n",
-           (unsigned long long)(after.voluntary_context_switches -
-                                before.voluntary_context_switches));
-    printf("involuntary_context_switches: %llu\n",
-           (unsigned long long)(after.involuntary_context_switches -
-                                before.involuntary_context_switches));
-    printf("minor_page_faults: %llu\n",
-           (unsigned long long)(after.minor_page_faults -
-                                before.minor_page_faults));
-    printf("major_page_faults: %llu\n",
-           (unsigned long long)(after.major_page_faults -
-                                before.major_page_faults));
-
-    return 0;
-}</code></pre> -->
+      
 
       <p>Compile and run it:</p>
       <pre><code>gcc -std=c11 -O2 -Wall -Wextra snapshot_test.c -o snapshot_test
@@ -573,7 +516,7 @@ int main(void)
         <li>Why do we need a system call?</li>
         <li>What data did we measure? What does each field mean?</li>
         <li>Design your own test cases so that <code>task_snapshot</code> measures different results. Explain why the results are different.</li>
-        <li>Use <code>strace</code>, <code>ftrace</code>, or another debugger/tracing tool to observe how your system call is passed through the system. Draw a flow chart and explain the path.</li>
+        <li>Use <code>strace</code> and <code>ftrace</code> to observe how your system call is passed through the system. Draw a flow chart and explain the path.</li>
         <li>What other insights do you gain from this lab?</li>
       </ol>
     </section>
@@ -641,7 +584,8 @@ sudo cp arch/arm64/boot/dts/overlays/README "$BOOT/overlays/"</code></pre>
       <p>
         Kernel development is easy to break. If your custom kernel cannot boot,
         or if you simply want to return to the original Raspberry Pi OS kernel,
-        restore the backup <code>config.txt</code> created in Step 8.
+        restore both backups created in Step 8: the <code>config.txt</code> copy
+        and the <code>dtb.before-overbug-lab1.tgz</code> Device Tree archive.
       </p>
 
       <h3>Method A: The Raspberry Pi still boots</h3>
@@ -659,6 +603,7 @@ else
 fi
 
 sudo cp "$BOOT_ON_PI/config.txt.before-overbug-lab1" "$BOOT_ON_PI/config.txt"
+( cd "$BOOT_ON_PI" &amp;&amp; sudo tar -xzf dtb.before-overbug-lab1.tgz )
 sudo reboot</code></pre>
 
       <p>After rebooting, verify that the custom kernel suffix is gone:</p>
@@ -677,6 +622,7 @@ sudo reboot</code></pre>
       <pre><code>BOOT=/media/$USER/bootfs
 
 sudo cp "$BOOT/config.txt.before-overbug-lab1" "$BOOT/config.txt"
+( cd "$BOOT" &amp;&amp; sudo tar -xzf dtb.before-overbug-lab1.tgz )
 sync
 sudo umount "$BOOT"</code></pre>
 

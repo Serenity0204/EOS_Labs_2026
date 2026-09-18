@@ -25,7 +25,7 @@
 
   <main class="page">
     <section class="hero lab-hero">
-      <p class="eyebrow">RTES913 - EOS - Raspberry Pi 4</p>
+      <p class="eyebrow">RTES913 - EOS - Raspberry Pi 3 or 4</p>
       <h1>Lab 0: Setting up your Raspberry Pi</h1>
       <p class="subtitle">
         Prepare the Ubuntu VM, flash Raspberry Pi OS, configure networking, and
@@ -38,7 +38,7 @@
       <p>
         Lab 0 makes sure the development machine, Ubuntu virtual machine, and
         Raspberry Pi can communicate reliably before kernel development begins.
-        Students who already use Ubuntu directly can skip the VirtualBox setup
+        Students who already use <strong>Ubuntu 22.04 LTS</strong> directly can skip the VirtualBox setup
         and continue with the Raspberry Pi steps.
       </p>
     </section>
@@ -47,7 +47,7 @@
       <h2>Required downloads</h2>
       <ul class="resource-list">
         <li><a href="https://www.virtualbox.org/wiki/Downloads">VirtualBox</a></li>
-        <li><a href="https://releases.ubuntu.com/noble/?_gl=1*2ew6cm*_gcl_au*MTEwNjA4MDc2NC4xNzgyMjcxMzE0">Ubuntu 24.04 Desktop ISO</a></li>
+        <li><a href="https://releases.ubuntu.com/jammy/">Ubuntu 22.04 LTS Desktop ISO</a></li>
         <li><a href="https://www.raspberrypi.com/software/">Raspberry Pi Imager</a></li>
       </ul>
     </section>
@@ -55,9 +55,15 @@
     <section class="panel">
       <h2>1. VirtualBox</h2>
       <p>
-        Install VirtualBox on the host computer, then create an Ubuntu 24.04 VM.
+        Install VirtualBox on the host computer, then create an
+        <strong>Ubuntu 22.04 LTS</strong> VM.
         During Ubuntu installation, choose English as the installation language.
       </p>
+
+      <div class="callout info">
+        <strong>Use Ubuntu 22.04 LTS.</strong>
+        Every command in these labs is written and tested for Ubuntu 22.04 LTS.
+      </div>
 
       <table>
         <thead>
@@ -68,27 +74,81 @@
         </thead>
         <tbody>
           <tr>
-            <td>Virtual disk</td>
-            <td>At least 20 GB</td>
+            <td>ISO image</td>
+            <td><code>ubuntu-22.04.5-desktop-amd64.iso</code></td>
+          </tr>
+          <tr>
+            <td>Unattended installation</td>
+            <td>Leave <strong>Proceed with Unattended Installation</strong> (以無人值守安裝繼續) <strong>unchecked</strong>; otherwise the terminal may not open correctly.</td>
           </tr>
           <tr>
             <td>Memory</td>
-            <td>At least 4 GB RAM</td>
+            <td>At least 4 GB (4096 MB)</td>
           </tr>
           <tr>
             <td>CPU</td>
-            <td>At least 1 processor. More processors make compiling and installing faster.</td>
+            <td>At least 1 processor; the example uses 4. More processors make compiling faster. Stay inside the green part of the slider.</td>
           </tr>
           <tr>
-            <td>Installation mode</td>
-            <td>Check <strong>Skip Unattended Installation</strong>; otherwise the terminal may not open correctly.</td>
+            <td>Virtual disk</td>
+            <td>At least 20 GB, VDI format</td>
           </tr>
         </tbody>
       </table>
 
+      <h3>Create the VM</h3>
+      <ol>
+        <li>In VirtualBox, choose <strong>New</strong> (新增).</li>
+        <li>
+          Under <strong>Name and Operating System</strong>, enter a VM name and select the
+          Ubuntu 22.04.5 ISO. Leave unattended installation unchecked.
+        </li>
+        <li>Under <strong>Hardware</strong>, set the memory and CPU count.</li>
+        <li>Under <strong>Hard Disk</strong>, create a new virtual hard disk of at least 20 GB.</li>
+        <li>Choose <strong>Finish</strong> (完成).</li>
+      </ol>
+
       <figure class="lab-figure">
-        <img src="assets/virtualbox-skip-unattended-installation.jpeg" alt="VirtualBox skip unattended installation setting" loading="lazy">
-        <figcaption>Skip unattended installation when creating the Ubuntu VM.</figcaption>
+        <img src="assets/virtualbox-new-vm-name-os.png" alt="VirtualBox new VM dialog with the Ubuntu ISO selected and unattended installation unchecked" loading="lazy">
+        <!-- <figcaption>
+          Select the Ubuntu 22.04.5 ISO and leave unattended installation unchecked.
+          If VirtualBox detects a different Ubuntu version (22.10 in this screenshot),
+          change <strong>OS Version</strong> to Ubuntu 22.04 LTS (64-bit).
+        </figcaption> -->
+      </figure>
+
+      <figure class="lab-figure">
+        <img src="assets/virtualbox-new-vm-hardware.png" alt="VirtualBox hardware settings with 4096 MB memory and 4 CPUs" loading="lazy">
+        <!-- <figcaption>Set memory and CPU count. Keep <strong>Enable EFI</strong> unchecked.</figcaption> -->
+      </figure>
+
+      <figure class="lab-figure">
+        <img src="assets/virtualbox-new-vm-disk.png" alt="VirtualBox hard disk settings creating a 20 GB VDI" loading="lazy">
+        <!-- <figcaption>Create a new 20 GB VDI virtual hard disk.</figcaption> -->
+      </figure>
+
+      <h3>Install Ubuntu</h3>
+      <p>
+        Start the VM. When the GRUB menu appears, choose
+        <strong>Try or Install Ubuntu</strong>, then follow the installer.
+      </p>
+
+      <figure class="lab-figure">
+        <img src="assets/ubuntu-installer-grub-menu.png" alt="GRUB menu with Try or Install Ubuntu highlighted" loading="lazy">
+        <!-- <figcaption>Boot the installer with <strong>Try or Install Ubuntu</strong>.</figcaption> -->
+      </figure>
+
+      <h3>Remove the installation ISO</h3>
+      <p>
+        After installation, shut down the VM and open <strong>Settings</strong> (設定)
+        &rarr; <strong>Storage</strong> (儲存體). Right-click the Ubuntu ISO under
+        <strong>Controller: IDE</strong> and choose <strong>Remove Attachment</strong>
+        (移除附件). The VM then boots from its virtual disk instead of the installer.
+      </p>
+
+      <figure class="lab-figure">
+        <img src="assets/virtualbox-remove-ubuntu-iso.png" alt="VirtualBox storage settings with Remove Attachment on the Ubuntu ISO" loading="lazy">
+        <!-- <figcaption>Remove the Ubuntu ISO from the virtual optical drive after installation.</figcaption> -->
       </figure>
 
       <!-- <div class="callout info">
@@ -98,10 +158,10 @@
         then enable the shared clipboard after starting the VM.
       </div> -->
 
-      <figure class="lab-figure">
+      <!-- <figure class="lab-figure">
         <img src="assets/virtualbox-shared-clipboard.png" alt="VirtualBox shared clipboard setting" loading="lazy">
         <figcaption>Enable shared clipboard from the running VM window.</figcaption>
-      </figure>
+      </figure> -->
     </section>
 
     <section class="panel">
@@ -120,14 +180,18 @@
 
     <section class="panel">
       <h2>3. Flash Raspberry Pi OS</h2>
+
       <ol>
-        <li>Insert the SD card into the computer with a card reader.</li>
-        <li>Open Raspberry Pi Imager.</li>
-        <li>Select <strong>Raspberry Pi OS (64-bit)</strong> as the operating system.</li>
-        <li>Select the SD card as <strong>Storage</strong>.</li>
-        <li>Choose <strong>Next</strong>, then open <strong>Edit Settings</strong>.</li>
-        <li>Set the password, WLAN if needed, locale, and SSH.</li>
-        <li>Save the settings, confirm the SD card erase prompt, and start writing the image.</li>
+        <li>Insert the SD card into the computer with a card reader, then open Raspberry Pi Imager.</li>
+        <li><strong>Device</strong> (设备): choose your board, <strong>Raspberry Pi 4</strong> or <strong>Raspberry Pi 3</strong>, then choose <strong>Next</strong> (下一步).</li>
+        <li>
+          <strong>Operating System</strong> (操作系统): choose
+          <strong>Raspberry Pi OS (Legacy, 64-bit)</strong>, described as
+          <em>A port of Debian Bookworm with security updates and desktop environment</em>.
+          Scroll down to find it, or open <strong>Raspberry Pi OS (other)</strong> if it
+          is not in the top-level list.
+        </li>
+        <li><strong>Storage</strong> (储存设备): select the SD card. Keep <strong>Exclude system drives</strong> (排除系统驱动器) checked.</li>
       </ol>
 
       <div class="callout warning">
@@ -135,15 +199,105 @@
         Raspberry Pi Imager erases the selected device before writing the image.
       </div>
 
-      <figure class="lab-figure">
-        <img src="assets/raspberry-pi-imager-os-storage.jpeg" alt="Raspberry Pi Imager operating system and storage selection" loading="lazy">
-        <figcaption>Select Raspberry Pi OS 64-bit and the correct SD card.</figcaption>
-      </figure>
+      <div class="figure-grid">
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-select-device.png" alt="Raspberry Pi Imager device page with Raspberry Pi 4 selected" loading="lazy">
+          <figcaption>Choose your Raspberry Pi model.</figcaption>
+        </figure>
 
-      <figure class="lab-figure">
-        <img src="assets/raspberry-pi-imager-edit-settings.png" alt="Raspberry Pi Imager edit settings dialog" loading="lazy">
-        <figcaption>Use Edit Settings to configure login, locale, and SSH before flashing.</figcaption>
-      </figure>
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-select-os-legacy-64bit.png" alt="Raspberry Pi Imager operating system page with Raspberry Pi OS Legacy 64-bit selected" loading="lazy">
+          <figcaption>Choose <strong>Raspberry Pi OS (Legacy, 64-bit)</strong> (Debian Bookworm).</figcaption>
+        </figure>
+
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-select-storage.png" alt="Raspberry Pi Imager storage page with the SD card reader selected" loading="lazy">
+          <figcaption>Select the SD card. Check the size so you do not pick another drive.</figcaption>
+        </figure>
+      </div>
+
+      <!-- <div class="callout info">
+        <strong>The stock image is not the kernel you develop on</strong>
+        Current Raspberry Pi OS releases ship a kernel several series newer than
+        the <code>rpi-6.1.y</code> tree this course pins, so from Lab 1 onward
+        you boot your own kernel image instead of the one on this card. Choose
+        <strong>Raspberry Pi OS (Legacy, 64-bit)</strong>, which is the Bookworm
+        (Debian 12) release: it is the closest release to the 6.1 series and it
+        uses the <code>/boot/firmware</code> boot layout that the later labs
+        assume. After the first boot, run <code>uname -r</code> once and write
+        the result down, so you can always tell the stock kernel apart from your
+        own builds.
+      </div> -->
+
+      <h3>Customisation</h3>
+      <p>
+        Imager then opens <strong>Customisation</strong> (自定义设置). Go through
+        every page; do not choose <strong>Skip customisation</strong> (跳过自定义设置).
+      </p>
+
+      <table>
+        <thead>
+          <tr>
+            <th>Page</th>
+            <th>What to set</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Hostname (主机名)</td>
+            <td>Optional. Keep the default or choose a name you can recognize.</td>
+          </tr>
+          <tr>
+            <td>Localisation (本地化)</td>
+            <td>Capital city <code>Taipei (Taiwan)</code>, time zone <code>Asia/Taipei</code>, keyboard layout <code>us</code>.</td>
+          </tr>
+          <tr>
+            <td>User (用户)</td>
+            <td>Set a username and password. <strong>Write them down</strong>: you need them for SSH in step 6.</td>
+          </tr>
+          <tr>
+            <td>Wi-Fi</td>
+            <td>Optional. The labs connect over Ethernet; enter a network name and password only if you also want WLAN.</td>
+          </tr>
+          <tr>
+            <td>Remote access (远程访问)</td>
+            <td>Turn on <strong>Enable SSH</strong> (开启 SSH) and choose <strong>Use password authentication</strong> (使用密码登录).</td>
+          </tr>
+          <tr>
+            <td>Raspberry Pi Connect (树莓派 Connect)</td>
+            <td>Leave it disabled.</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="figure-grid">
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-localisation.png" alt="Raspberry Pi Imager localisation page set to Taipei, Asia/Taipei, and us keyboard" loading="lazy">
+          <figcaption>Localisation: Taipei, <code>Asia/Taipei</code>, <code>us</code> keyboard.</figcaption>
+        </figure>
+
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-wifi.png" alt="Raspberry Pi Imager Wi-Fi page with network name and password fields" loading="lazy">
+          <figcaption>Wi-Fi (optional): network name and password.</figcaption>
+        </figure>
+
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-ssh.png" alt="Raspberry Pi Imager SSH page with SSH enabled and password authentication selected" loading="lazy">
+          <figcaption>Remote access: enable SSH with password authentication.</figcaption>
+        </figure>
+
+        <figure class="lab-figure">
+          <img src="assets/raspberry-pi-imager-raspberry-pi-connect.png" alt="Raspberry Pi Imager Raspberry Pi Connect page with the switch turned off" loading="lazy">
+          <figcaption>Raspberry Pi Connect: leave disabled.</figcaption>
+        </figure>
+      </div>
+
+      <h3>Write the image</h3>
+      <p>
+        On the <strong>Write</strong> (写入) page, check the summary, confirm the
+        erase prompt, and wait until Imager shows <strong>Finished</strong> (完成).
+        Do not remove the SD card while Imager is writing or verifying.
+      </p>
     </section>
 
     <section class="panel">
@@ -162,6 +316,27 @@
         <img src="assets/raspberry-pi-static-ip-cmdline.png" alt="cmdline.txt Raspberry Pi static IP setting" loading="lazy">
         <figcaption>Add the Raspberry Pi IP setting at the end of <code>cmdline.txt</code>.</figcaption>
       </figure>
+
+      <h3>Check the indicator lights</h3>
+      <p>
+        The Raspberry Pi has two small lights on the board. On a Raspberry Pi 4
+        they sit next to the USB-C power port.
+      </p>
+      <ul>
+        <li><strong>Red (PWR)</strong>: power.</li>
+        <li><strong>Green (ACT)</strong>: activity. It flickers when the Raspberry Pi reads or writes the SD card.</li>
+      </ul>
+
+      <p>
+        A normal boot looks like this: the red light turns on and stays on, and
+        the green light flickers irregularly for about 30&ndash;60 seconds while
+        the SD card is read, then blinks only occasionally. The first boot takes
+        longer because the Imager settings are applied.
+      </p>
+
+      
+
+      
     </section>
 
     <section class="panel">
@@ -171,36 +346,58 @@
         to the Raspberry Pi through the Ethernet adapter.
       </p>
 
-      <h3>Adapter 1: Raspberry Pi connection</h3>
-      <p>
-        Use <strong>Bridged Adapter</strong> and choose the USB Ethernet adapter
-        that is connected to the Raspberry Pi.
-      </p>
-
-      <figure class="lab-figure">
-        <img src="assets/virtualbox-bridged-adapter.png" alt="VirtualBox bridged adapter for Raspberry Pi Ethernet" loading="lazy">
-        <figcaption>Bridge the VM to the network adapter connected to the Raspberry Pi.</figcaption>
-      </figure>
-
-      <h3>Adapter 2: Internet access</h3>
-      <p>
-        Use <strong>NAT</strong> for Internet access through the host computer.
-        A bridged adapter can also work if your environment requires it.
-      </p>
-
-      <figure class="lab-figure">
-        <img src="assets/virtualbox-nat-adapter.png" alt="VirtualBox NAT adapter for Internet access" loading="lazy">
-        <figcaption>Use NAT for the VM's Internet connection.</figcaption>
-      </figure>
-
       <div class="callout warning">
-        <strong>VirtualBox version note</strong>
-        In some VirtualBox 7.0 setups, NAT may need to be Adapter 1. If networking
-        fails, adjust the order of the two adapters for your version.
+        <strong>Shut down the VM before changing adapters.</strong>
+        VirtualBox locks most network adapter settings while the VM is running,
+        and changes made then may not take effect.
+      </div>
+
+      <ol>
+        <li>In Ubuntu, open the system menu at the top-right corner and choose <strong>Power Off</strong>, or run <code>sudo poweroff</code> in a terminal.</li>
+        <li>Wait until VirtualBox Manager shows the VM as <strong>Powered Off</strong>. Do not use <strong>Pause</strong> or <strong>Save State</strong>.</li>
+        <li>Select the VM and open <strong>Settings</strong> (設定) &rarr; <strong>Network</strong> (網路).</li>
+        <li>Configure Adapter 1 and Adapter 2 as shown below, then choose <strong>OK</strong> (確定).</li>
+      </ol>
+
+      <h3>Adapter 1: Internet access</h3>
+      <p>
+        On the <strong>Adapter 1</strong> (適配器 1) tab, keep
+        <strong>Enable Network Adapter</strong> checked and set
+        <strong>Attached to</strong> to <strong>NAT</strong>. The VM reaches the
+        Internet through the host computer.
+      </p>
+
+      <figure class="lab-figure">
+        <img src="assets/virtualbox-adapter1-nat.png" alt="VirtualBox Adapter 1 attached to NAT" loading="lazy">
+        <figcaption>Adapter 1 uses NAT for the VM's Internet connection.</figcaption>
+      </figure>
+
+      <h3>Adapter 2: Raspberry Pi connection</h3>
+      <p>
+        On the <strong>Adapter 2</strong> tab, check <strong>Enable Network Adapter</strong>,
+        set <strong>Attached to</strong> to <strong>Bridged Adapter</strong> (橋接適配器),
+        and set <strong>Name</strong> to the USB Ethernet adapter that is connected to
+        the Raspberry Pi.
+      </p>
+
+      <figure class="lab-figure">
+        <img src="assets/virtualbox-adapter2-bridged.png" alt="VirtualBox Adapter 2 bridged to a USB Ethernet adapter" loading="lazy">
+        <figcaption>
+          Adapter 2 bridges the VM to the Raspberry Pi. The adapter name depends on
+          your hardware; the screenshot shows an ASIX AX88179 USB Ethernet adapter.
+        </figcaption>
+      </figure>
+
+      <div class="callout info">
+        <strong>Which adapter is which inside Ubuntu</strong>
+        Ubuntu names the interfaces in adapter order: Adapter 1 (NAT) appears as
+        <code>enp0s3</code> and Adapter 2 (Bridged) appears as <code>enp0s8</code>.
+        If you are not sure which USB Ethernet adapter to pick, unplug it, reopen
+        the list, and see which entry disappears.
       </div>
 
       <h3>Test Internet access</h3>
-      <p>Inside the VM, test that it can reach the Internet.</p>
+      <p>Start the VM and test that it can reach the Internet.</p>
       <pre><code>ping google.com</code></pre>
 
       <figure class="lab-figure">
@@ -210,8 +407,8 @@
 
       <h3>Set the VM IP</h3>
       <p>
-        Configure the VM Ethernet-side IP so it is different from the Raspberry
-        Pi but still in the same subnet.
+        Configure the Raspberry Pi-facing interface, <code>enp0s8</code>, so its IP
+        is different from the Raspberry Pi but still in the same subnet.
       </p>
 
       <table>
@@ -227,20 +424,34 @@
             <td><code>192.168.222.222</code></td>
           </tr>
           <tr>
-            <td>Ubuntu VM</td>
+            <td>Ubuntu VM (<code>enp0s8</code>)</td>
             <td><code>192.168.222.100</code></td>
           </tr>
         </tbody>
       </table>
 
+      <ol>
+        <li>Open Ubuntu <strong>Settings</strong> &rarr; <strong>Network</strong>.</li>
+        <li>Choose the gear button next to <strong>Ethernet (enp0s8)</strong>.</li>
+        <li>On the <strong>IPv4</strong> tab, choose <strong>Manual</strong>.</li>
+        <li>Enter Address <code>192.168.222.100</code> and Netmask <code>255.255.255.0</code>. Leave <strong>Gateway</strong> empty.</li>
+        <li>Choose <strong>Apply</strong>.</li>
+      </ol>
+
+      <div class="callout warning">
+        <strong>Leave Gateway empty.</strong>
+        A gateway on the Raspberry Pi link can replace the VM's default route,
+        and Internet access through the NAT adapter stops working.
+      </div>
+
       <figure class="lab-figure">
-        <img src="assets/ubuntu-wired-network-settings.png" alt="Ubuntu network settings for wired connection" loading="lazy">
-        <figcaption>Open the VM network settings for the Raspberry Pi-facing adapter.</figcaption>
+        <img src="assets/ubuntu-wired-network-settings.png" alt="Ubuntu network settings with the enp0s8 gear button highlighted" loading="lazy">
+        <figcaption>Open the settings for <strong>Ethernet (enp0s8)</strong>, the Raspberry Pi-facing adapter.</figcaption>
       </figure>
 
       <figure class="lab-figure">
-        <img src="assets/ubuntu-manual-ipv4.png" alt="Ubuntu manual IPv4 address setting" loading="lazy">
-        <figcaption>Set a manual IPv4 address in the same subnet as the Raspberry Pi.</figcaption>
+        <img src="assets/ubuntu-manual-ipv4.png" alt="Ubuntu manual IPv4 address setting with empty gateway" loading="lazy">
+        <figcaption>Set a manual IPv4 address in the same subnet as the Raspberry Pi, with no gateway.</figcaption>
       </figure>
     </section>
 
@@ -258,8 +469,9 @@
     <section class="panel">
       <h2>Expected results</h2>
       <ul>
-        <li>The Ubuntu 24.04 VM boots successfully.</li>
+        <li>The Ubuntu 22.04 LTS VM boots successfully.</li>
         <li>The VM has Internet access.</li>
+        <li>The Raspberry Pi's red light stays on and the green light flickers while it boots from the SD card.</li>
         <li>The Raspberry Pi boots Raspberry Pi OS 64-bit.</li>
         <li>The VM and Raspberry Pi have different IP addresses in the same subnet.</li>
         <li>The VM can SSH into the Raspberry Pi.</li>
