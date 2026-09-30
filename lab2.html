@@ -60,8 +60,8 @@
         <li>the user-kernel boundary from Lab 1;</li>
         <li>Linux device files and <code>read()</code>;</li>
         <li>kernel module build, load, and unload commands;</li>
-        <li>active-low GPIO wiring with pull-up resistors.</li>
-        <li>basic socket programming, including IP addresses, port numbers, and the use of <code>socket()</code>, <code>sendto()</code>, and <code>recvfrom()</code>;</li>
+        <!-- <li>active-low GPIO wiring with pull-up resistors.</li> -->
+        <!-- <li>basic socket programming, including IP addresses, port numbers, and the use of <code>socket()</code>, <code>sendto()</code>, and <code>recvfrom()</code>;</li> -->
   <li>the basic behavior of UDP as a connectionless, best-effort transport protocol.</li>
       </ul>
       <p>By the end, you will expose a GPIO device state, transmit it over UDP, and verify it in Overbug.</p>
@@ -74,7 +74,7 @@
       <div class="lab3-system-map lab2-system-map" aria-label="Lab 2 device-state responsibilities">
         <div class="lab3-external">
           <strong>Physical controller</strong>
-          <span>A 4&times;4 keypad connects to eight GPIO lines on the Raspberry Pi.</span>
+          <span>Six keys in two rows of a 4&times;4 keypad connect to five GPIO lines on the Raspberry Pi.</span>
         </div>
 
         <div class="lab3-arrow" aria-hidden="true">
@@ -226,7 +226,8 @@
       <p>
         Each controller is a 4&times;4 membrane keypad. Six of its 16 keys are the
         game controls UP, DOWN, LEFT, RIGHT, ACTION, and SOLDER; the other ten
-        keys are not used. The driver scans the keypad through eight GPIO lines
+        keys are not used. Use keys 1&ndash;6 in the first two rows and first three
+        columns. The driver scans this 2&times;3 region through five GPIO lines
         and represents the six controls as one six-bit
         <a href="#state-mask">state mask</a> value.
       </p>
@@ -246,14 +247,14 @@
           alt="Two 4x4 membrane keypads seen from the back, showing printed traces that join the keys in rows and columns and run down a flat cable to an 8-pin socket"
           loading="lazy"
         >
-        <figcaption>
+        <!-- <figcaption>
           Two 4&times;4 membrane keypads seen from the back. Each horizontal trace
           joins the four keys of one row, and each vertical trace joins the four
           keys of one column. All eight traces run down the flat cable to the
           8-pin socket. The two keypads route their traces to the socket
           differently, so check the pin order of your own keypad. Because this is
           the back, the columns are mirrored compared with the front view below.
-        </figcaption>
+        </figcaption> -->
       </figure>
 
       <table>
@@ -267,10 +268,10 @@
           </tr>
         </thead>
         <tbody>
-          <tr><th>R1</th><td>1</td><td><strong>2</strong></td><td>3</td><td>A</td></tr>
+          <tr><th>R1</th><td><strong>1</strong></td><td><strong>2</strong></td><td><strong>3</strong></td><td>A</td></tr>
           <tr><th>R2</th><td><strong>4</strong></td><td><strong>5</strong></td><td><strong>6</strong></td><td>B</td></tr>
-          <tr><th>R3</th><td>7</td><td><strong>8</strong></td><td>9</td><td>C</td></tr>
-          <tr><th>R4</th><td>*</td><td><strong>0</strong></td><td>#</td><td>D</td></tr>
+          <tr><th>R3</th><td>7</td><td>8</td><td>9</td><td>C</td></tr>
+          <tr><th>R4</th><td>*</td><td>0</td><td>#</td><td>D</td></tr>
         </tbody>
       </table>
 
@@ -292,74 +293,82 @@
         </thead>
         <tbody>
           <tr><td>2</td><td>R1, C2</td><td>UP</td><td><code>0x01</code></td></tr>
-          <tr><td>8</td><td>R3, C2</td><td>DOWN</td><td><code>0x02</code></td></tr>
-          <tr><td>4</td><td>R2, C1</td><td>LEFT</td><td><code>0x04</code></td></tr>
-          <tr><td>6</td><td>R2, C3</td><td>RIGHT</td><td><code>0x08</code></td></tr>
-          <tr><td>5</td><td>R2, C2</td><td>ACTION</td><td><code>0x10</code></td></tr>
-          <tr><td>0</td><td>R4, C2</td><td>SOLDER</td><td><code>0x20</code></td></tr>
+          <tr><td>5</td><td>R2, C2</td><td>DOWN</td><td><code>0x02</code></td></tr>
+          <tr><td>1</td><td>R1, C1</td><td>LEFT</td><td><code>0x04</code></td></tr>
+          <tr><td>3</td><td>R1, C3</td><td>RIGHT</td><td><code>0x08</code></td></tr>
+          <tr><td>4</td><td>R2, C1</td><td>ACTION</td><td><code>0x10</code></td></tr>
+          <tr><td>6</td><td>R2, C3</td><td>SOLDER</td><td><code>0x20</code></td></tr>
         </tbody>
       </table>
 
-      <h3>Find the keypad pin order</h3>
+      <!-- <h3>Identify the keypad lines</h3>
       <p>
-        Keypad makers use different pin orders, so do not assume which cable pin
-        is which line. Check your keypad with a multimeter in continuity mode:
+        Each pressed key closes a connection between one row and one column.
+        Keys in the same row share a row wire; keys in the same column share a
+        column wire. Use this relationship to identify R1, R2, and C1&ndash;C3
+        with a multimeter in continuity mode while the keypad is disconnected
+        from the Pi. Keypad socket orders vary, so verify your own device rather
+        than assuming the order shown by another keypad.
+      </p> -->
+
+      <h3>Plan your GPIO connections</h3>
+      <p>
+        Choose five available GPIOs: two for the rows and three for the columns.
+        Design your own wiring layout and record each keypad line, physical
+        header position, and BCM GPIO number. Your driver's module parameters
+        must use the BCM numbers that match your wiring. Leave the unused R3,
+        R4, and C4 lines unconnected.
       </p>
-      <ol>
-        <li>Hold key <strong>1</strong> and find the two cable pins that beep. They are R1 and C1.</li>
-        <li>Hold keys <strong>2</strong>, <strong>3</strong>, and <strong>A</strong> one at a time. The pin shared with step 1 is R1; each new pin is C2, C3, and C4.</li>
-        <li>Hold keys <strong>4</strong>, <strong>7</strong>, and <strong>*</strong> one at a time. C1 beeps again; each new pin is R2, R3, and R4.</li>
-      </ol>
-
-      <h3>Choose GPIO pins</h3>
-
       <figure class="lab-figure">
         <img
           src="assets/raspberry-pi-gpio-pin-demo.png"
           alt="Raspberry Pi board and 40-pin header reference diagram showing physical pin numbers, GPIO names, power pins, and ground pins"
         >
         <figcaption>
-          Use the header reference to choose eight GPIO pins for the keypad and
-          record their BCM GPIO numbers.
+          Header reference only. Select your own GPIOs and distinguish physical
+          pin positions from the BCM numbers used by the driver.
         </figcaption>
       </figure>
 
-      <ul>
-        <li>
-          Choose eight pins labelled <code>GPIO</code>: four for the rows and four
-          for the columns. Do not use a 3.3 V, 5 V, or GND pin as a GPIO.
-        </li>
-        <li>
-          Record each physical header position, its BCM GPIO number, and the
-          keypad line (R1&ndash;R4 or C1&ndash;C4) connected to it.
-        </li>
-        <li>
-          Configure the same four row and four column BCM GPIO numbers in your
-          <code>driver.c</code> module parameters.
-        </li>
-        <li>
-          Connect each <strong>column</strong> input to 3.3 V through a physical
-          pull-up resistor; the legacy API used in this lab does not configure the
-          internal bias. The row lines do not need pull-up resistors.
-        </li>
-        <li>
-          The keypad cable ends in a female socket; use male-to-female jumper wires
-          to reach the Raspberry Pi header. Do not fold the flat cable near the
-          socket.
-        </li>
-      </ul>
+      <h3>Why the columns need pull-ups</h3>
+      <p>
+        A GPIO input senses voltage; it does not set a voltage by itself.
+        Without a pull-up, an open column can float and give unreliable readings.
+        An external pull-up resistor connects each column to 3.3 V, giving it a
+        defined high level when no pressed key connects it to the active row.
+        
+      </p>
+      <p>
+        When a key in the row being scanned is pressed, it connects that column
+        to the row driven low. The column then reads 0, meaning
+        <strong>pressed</strong>; a reading of 1 means <strong>released</strong>
+        for an unambiguous scan. This is active-low input. The resistor limits
+        current from 3.3 V into the low output; a direct connection to 3.3 V
+        would create a short when the key is pressed. 
+      </p>
 
       <h3>Scan the keypad</h3>
+      <figure class="lab-figure">
+        <img src="assets/lab2-keypad-principle.svg"
+          alt="A 2 by 2 keypad example: columns C1 and C2 each have a pull-up resistor to 3.3 volts. R1 is driven low and R2 is a high-impedance input. Only key 1 at R1 C1 is pressed, so C1 reads 0 and C2 reads 1."
+          loading="lazy">
+        <!-- <figcaption>
+          <a href="assets/lab2-keypad-principle.svg" target="_blank" rel="noopener">Open the 2&times;2 principle diagram.</a>
+          This example uses keys 1, 2, 4, and 5; the lab scans one additional
+          column in the same way. A closed switch connects its row and column.
+          Dots mark connected wires; arched crossings are not connected.
+          Driving a row low uses its GPIO output; do not permanently wire that row to GND.
+        </figcaption> -->
+      </figure>
       <p>
         With pull-up resistors, every column reads 1 while no key connects it to
-        anything. To check one row, drive only that row low and read the four
-        columns: a column that reads 0 has a pressed key in that row. Check each
-        of the four rows in turn, then keep only the six mapped keys.
+        anything. To check one row, drive only that row low and read the three
+        columns.
       </p>
       <p>
         For example, if UP and ACTION are held: while R1 is low, C2 reads 0
-        (key 2); while R2 is low, C2 reads 0 again (key 5); R3 and R4 find
-        nothing. The state mask is <code>0x01 | 0x10 = 0x11</code>.
+        (key 2); while R2 is low, C1 reads 0 (key 4).
+        The state mask is <code>0x01 | 0x10 = 0x11</code>.
       </p>
 
       <div class="callout warning">
@@ -371,13 +380,17 @@
         a short time to settle before reading them.
       </div>
 
-      <div class="callout info">
+      <!-- <div class="callout info">
         <strong>Ghosting</strong>
-        This keypad has no diodes. When three or more keys are held, a key that is
-        not pressed can read as pressed. The six mapped keys are placed so that
-        they cannot create a false mapped key among themselves, but holding unused
-        keys at the same time can. Your driver must not report a control that was
-        not pressed.
+        This keypad has no per-key diodes. In this 2&times;3 layout, pressing
+        <strong>1, 2, and 4</strong> together can also make <strong>5</strong>
+        appear pressed: three corners of a rectangle create a path through the
+        fourth corner's row and column. Debouncing does not remove this electrical
+        ambiguity. The baseline lab requires correct single-key and two-key input
+        among keys 1&ndash;6, not arbitrary three-or-more-key combinations.
+        Do not press unused keys: their internal connections can still participate
+        in ghost paths even when some cable lines are unconnected. Investigate
+        prevention and software trade-offs in the QA question below.
       </div>
 
       <div class="callout warning">
@@ -388,7 +401,7 @@
         reserved for another function. The Raspberry Pi 3 and Raspberry Pi 4
         share the same 40-pin header and the same BCM numbering, so one wiring
         plan works on either board.
-      </div>
+      </div> -->
 
       <div class="callout warning">
         <strong>Wiring safety</strong>
@@ -637,7 +650,7 @@
         <tbody>
           <tr>
             <td><code>driver.c</code></td>
-            <td>4&times;4 keypad scanned through eight GPIO lines</td>
+            <td>Two rows and three columns of a 4&times;4 keypad scanned through five GPIO lines</td>
             <td><code>/dev/overbug_buttons</code> as <code>OBTN XX</code></td>
             <td>Student</td>
           </tr>
@@ -672,7 +685,7 @@
       <ul>
         <li>
           <strong>Initialize GPIO:</strong>
-          Request the four row and four column GPIOs from your module parameters
+          Request the two row and three column GPIOs from your module parameters
           with <code>gpio_request()</code>. Configure every line as an input with
           <code>gpio_direction_input()</code>; a row becomes an output only while
           it is being scanned.
@@ -740,6 +753,10 @@ make reader
       <p>
         The device test should print a line such as <code>OBTN 00</code>. Press
         a control and run it again to confirm the expected bit changes.
+        Check each of keys 1&ndash;6 separately and all pairs of these keys.
+        For example, key 2 alone gives <code>OBTN 01</code>, key 4 alone gives
+        <code>OBTN 10</code>, and keys 2 + 4 give <code>OBTN 11</code>.
+        Releasing all keys must restore <code>OBTN 00</code>.
       </p>
 
       <h3>On the PC or Ubuntu VM</h3>
@@ -783,14 +800,18 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
       <ol>
         <li>
           <p>
+              Record a short video of your actual gameplay using the physical
+              keypad connected to the Raspberry Pi.
+          </p>
+        </li>
+        <li>
+          <p>
               Explain what happens when the driver module is loaded. Describe
               how the driver is registered with the kernel and how its
               <code>struct file_operations</code> is associated with the
               registered device.
 
-              Describe the relationship between the hardware device, the driver,
-              the <code>struct file_operations</code> table, and the device node
-              created under <code>/dev</code>.              
+                          
           </p>
 
         </li>
@@ -802,14 +823,14 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
           </p>
 
         </li>
-        <li>
+        <!-- <li>
           <p>
               Briefly describe the main types of pins on the Raspberry Pi
               40-pin header, such as GPIO, power, and ground. Which GPIO pins do
               you use for the keypad rows and columns? Give both their physical
               header positions and BCM GPIO numbers.
           </p>
-        </li>
+        </li> -->
 
         <li>
           <p>
@@ -827,6 +848,16 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
               counter) and how it decides to accept a new switch state.
           </p>
 
+        </li>
+
+        <li>
+          <p>
+              What is ghosting in this two-row, three-column keypad? Hold keys
+              <strong>1, 2, and 4</strong> and record the raw scanned keys.
+              Explain the electrical path that can make key <strong>5</strong>
+              appear pressed when R2 is driven low and R1 is an input.
+              How could you prevent ghosting? 
+          </p>
         </li>
 
         <li>
@@ -849,6 +880,7 @@ make KDIR=/path/to/linux-rpi-6.1-gpio \
           </p>
 
         </li>
+        
       </ol>
     </section>
   </main>
