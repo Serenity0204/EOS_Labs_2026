@@ -180,6 +180,7 @@
       <h3>Player position, movement, and facility control</h3>
       <ul>
         <li><code>x</code> and <code>y</code> are the centre of the player's circular icon in the fixed 1280 by 720 world. <code>x</code> increases to the right and <code>y</code> increases downward.</li>
+        <li>At the start of a game, place player 1 at <code>(560, 370)</code>, player 2 at <code>(620, 370)</code>, player 3 at <code>(500, 370)</code>, and player 4 at <code>(680, 370)</code>. Initialize only players <code>1..N</code> selected by <code>--players N</code>.</li>
         <li>A player has an 18-pixel radius. The player centre stays between <code>x = 88..1192</code> and <code>y = 114..618</code>, so the circle cannot leave the playable map.</li>
         <li>If a move would move the player's circle into a facility rectangle, the supplied baseline cancels that move and leaves the player at the previous position. Players may pass through other players.</li>
         <li>A new Action press controls the nearest facility within 54 pixels of the player's centre. The distance is measured to the nearest edge of the facility rectangle, not its centre.</li>
@@ -192,13 +193,13 @@
         <li>Each player carries at most one item. Movement is bounded by the map and facility rectangles; players may pass through one another.</li>
         <li>An Action rising edge operates the nearest facility within 54 pixels. An empty player picks up; a carrying player drops when that facility accepts the item.</li>
         <li>At a welder, place a raw, soldering, or ready board and then one material. A Solder rising edge near that welder immediately adds the material to the board.</li>
-        <li>A verifier accepts a raw, soldering, or ready board and immediately passes it only when its resistor, capacitor, and inductor counts exactly match an unlocked order; otherwise it fails the board.</li>
+        <li>A verifier accepts a raw, soldering, or ready board and immediately passes it only when its resistor, capacitor, and inductor counts exactly match an unlocked order; otherwise it fails the board. If the board matches more than one unlocked order with identical requirements, it must lock the first matching order in <code>orders[]</code>, so identical orders are completed in their displayed order.</li>
         <li>There are three active orders. You may design your own method for generating the initial and replacement orders, but every order must follow this format and these rules: it has an ID, a <code>req:[resistor,capacitor,inductor]</code> requirement, and a <code>locked_board_id</code>; it needs 1-4 total components, with 0-2 of each type. Shipping a passed, locked board earns <code>10 + 5 x total required components</code> points and creates a replacement order.</li>
         <li>The overall timer stays at 180 seconds in every snapshot, but Lab 3 does not decrement it or end the game automatically. Press Esc to close the display session, then use Ctrl-C to stop the server. Recycling wrong or unwanted unlocked items increases <code>recycled</code> without a score penalty. A passed board locked to an order cannot enter recycle; it must go to shipping.</li>
       </ul>
       <div class="callout info">
-        <strong>When two players want the same facility</strong>
-        When valid Action or Solder events contest one shared facility, the server handles the first packet it receives. If that event is valid, it changes the facility state immediately. Later events then see the changed state and fail. First means first received by <code>recvfrom()</code>, not the first physical button press. The server does not queue a player for a later turn; that player must try again when the facility is available.
+        <strong>Only one player wins</strong>
+        When multiple players contest the same facility, only one valid Action or Solder operation may update it at a time.
       </div>
     </section>
 
@@ -321,31 +322,41 @@
 
     <section class="panel">
       <h2>6. Build and run</h2>
-      <p>After you implement the refactor, use the PC terminals required by your chosen design.</p>
+      <p>Run each program on the machine shown below. Multiple Raspberry Pis are optional: you may use the provided keyboard simulator on the PC instead of physical Pi controllers.</p>
+      <table>
+        <thead><tr><th>Program</th><th>Runs on</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><code>server</code></td><td>Ubuntu/Linux PC or Raspberry Pi</td><td>Owns the authoritative multiplayer game state. Build and run it on the same machine.</td></tr>
+          <tr><td><code>display.py</code></td><td>PC</td><td>Displays the <code>OBST</code> snapshots sent by the server.</td></tr>
+          <tr><td><code>overbug_buttons.ko</code> and <code>reader</code></td><td>Raspberry Pi</td><td>Optional physical controller. Use one reader and a distinct player ID for each Pi.</td></tr>
+          <tr><td><code>player.py</code></td><td>PC</td><td>Optional replacement for the Pi controllers. One simulator provides keyboard input for all four player IDs.</td></tr>
+        </tbody>
+      </table>
       <h3>Build the Lab 3 server</h3>
-      <p>Write your own <code>Makefile</code> for the Lab 3 server; one is not provided. It should compile <code>server.c</code> into a <code>server</code> program (for example, through a default <code>make</code> target) and offer a <code>make clean</code> target.</p>
+      <p>On the Ubuntu/Linux PC or Raspberry Pi that will run the server, write your own <code>Makefile</code>; one is not provided. It should compile <code>server.c</code> into a <code>server</code> program (for example, through a default <code>make</code> target) and offer a <code>make clean</code> target.</p>
       <pre><code>cd Lab3
 make</code></pre>
       <p>Add architecture-specific link options as your implementation needs them; for example, add <code>-pthread</code> for POSIX threads, mutexes, or spinlocks. POSIX message queues may also require <code>-lrt</code> on some Linux systems.</p>
-      <h3>Start the provided display</h3>
+      <h3>Start the provided display on the PC</h3>
       <pre><code>python3 ../Lab2/display.py --host 0.0.0.0 --port 17667</code></pre>
-      <h3>Start your multiplayer server</h3>
+      <h3>Start your multiplayer server on its Linux machine</h3>
       <pre><code>./server --players 4 --input-port 17666 --display-host 127.0.0.1 --display-port 17667</code></pre>
-      <p>The supplied starter does not accept <code>--players</code> yet; this command should work after your refactor.</p>
-      <h3>One Raspberry Pi per player</h3>
+      <p>This example assumes the server and display run on the same PC. If the server runs on a Raspberry Pi, replace <code>127.0.0.1</code> after <code>--display-host</code> with the PC's IP address. The supplied starter does not accept <code>--players</code> yet; this command should work after your refactor.</p>
+      <h3>Input option A: Raspberry Pi controllers</h3>
       <p>On each Pi, reuse the Lab 2 reader and give every controller a different ID:</p>
       <pre><code>cd Lab2
 make reader
-./reader --server &lt;PC_IP&gt; --player 1
+./reader --server &lt;SERVER_IP&gt; --player 1
 
 # On the second Pi:
-./reader --server &lt;PC_IP&gt; --player 2</code></pre>
-      <p>For three or four players, start readers with <code>--player 3</code> and <code>--player 4</code> on additional Pi controllers, and start the server with the matching <code>--players</code> count.</p>
-      <h3>Home simulation without Raspberry Pis</h3>
-      <p><code>Lab3/player.py</code> opens one keyboard-controller window and sends the same <code>OBIN</code> packets as Pi readers for all four players. It uses the same <code>pygame-ce</code> package as <code>display.py</code>. After your server accepts IDs 1-4, start one simulator:</p>
+./reader --server &lt;SERVER_IP&gt; --player 2</code></pre>
+      <p>For three or four physical controllers, start readers with <code>--player 3</code> and <code>--player 4</code> on additional Pis, and start the server with the matching <code>--players</code> count. You do not need multiple Pis if you use input option B.</p>
+      <h3>Input option B: PC keyboard simulator (no Raspberry Pi required)</h3>
+      <p><code>Lab3/player.py</code> opens one keyboard-controller window on the PC and sends the same <code>OBIN</code> packets as the Pi readers for all four player IDs. It uses the same <code>pygame-ce</code> package as <code>display.py</code>. After your server accepts IDs 1-4, start one simulator:</p>
       <pre><code>cd Lab3
 
 python3 player.py --server 127.0.0.1</code></pre>
+      <p>This example assumes the server also runs on the PC. If the server runs on a Raspberry Pi, replace <code>127.0.0.1</code> with that Pi's IP address.</p>
       <p>The window sends all four players’ current device states at 60 Hz, so they can act simultaneously. Press <code>Esc</code> or close the window to stop every simulated player.</p>
       <table>
         <thead><tr><th>Player</th><th>Move</th><th>Action</th><th>Solder</th></tr></thead>
